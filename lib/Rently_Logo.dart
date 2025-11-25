@@ -15,7 +15,7 @@ class _RentlyAppState extends State<RentlyApp> {
 
     
     Timer(const Duration(seconds: 3), () {
-      Navigator.pushReplacementNamed(context, '/create');
+      Navigator.pushReplacementNamed(context, '/login');
     });
   }
 
