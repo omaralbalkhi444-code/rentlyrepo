@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'Fake data.dart';
 import 'EquipmentItem.dart';
-import 'Equipment_Detail_Page.dart';
+import 'ProductListPage.dart';
 
 class CategoryEquipmentPage extends StatefulWidget {
   const CategoryEquipmentPage({super.key});
@@ -23,10 +23,13 @@ class _CategoryEquipmentPageState extends State<CategoryEquipmentPage> {
 
     final categoryId = routeArgs['id']!;
     final categoryTitle = routeArgs['title']!;
+
+   
     final allItems = DUMMY_EQUIPMENT
         .where((eq) => eq.categories.contains(categoryId))
         .toList();
 
+   
     final displayedItems = allItems
         .where((item) =>
             item.title.toLowerCase().contains(searchQuery.toLowerCase()))
@@ -36,7 +39,7 @@ class _CategoryEquipmentPageState extends State<CategoryEquipmentPage> {
       body: SafeArea(
         child: Column(
           children: [
-         
+           
             ClipPath(
               clipper: SideCurveClipper(),
               child: Container(
@@ -91,7 +94,7 @@ class _CategoryEquipmentPageState extends State<CategoryEquipmentPage> {
               ),
             ),
 
-           
+        
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(12.0),
@@ -132,11 +135,17 @@ class EquipmentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => Navigator.pushNamed(
-        context,
-        EquipmentDetailPage.routeName,
-        arguments: item,
-      ),
+      onTap: () {
+       
+        Navigator.pushNamed(
+          context,
+          ProductListPage.routeName,
+          arguments: {
+            'type': item.title,   
+            'title': item.title, 
+          },
+        );
+      },
       child: Card(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
         elevation: 4,
@@ -156,6 +165,7 @@ class EquipmentCard extends StatelessWidget {
     );
   }
 }
+
 
 class SideCurveClipper extends CustomClipper<Path> {
   @override
@@ -183,3 +193,4 @@ class SideCurveClipper extends CustomClipper<Path> {
   @override
   bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }
+
