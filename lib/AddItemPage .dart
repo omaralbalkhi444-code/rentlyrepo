@@ -52,7 +52,6 @@ class _AddItemPageState extends State<AddItemPage> {
       return;
     }
 
-    // Fake data map
     final Map<String, dynamic> newItem = {
       "name": nameController.text,
       "desc": descController.text,
@@ -75,7 +74,7 @@ class _AddItemPageState extends State<AddItemPage> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Image Picker
+            
             InkWell(
               onTap: pickImage,
               child: Container(
