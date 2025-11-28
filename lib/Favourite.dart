@@ -97,7 +97,7 @@ class _FavouritePageState extends State<FavouritePage> {
                             ),
                             const SizedBox(height: 5),
                             Text(
-                              '\$${item.pricePerDay} / day',
+                              '\$${item.pricePerHour} / Hour',
                               style: const TextStyle(color: Colors.white70),
                             ),
                             const SizedBox(height: 10),
