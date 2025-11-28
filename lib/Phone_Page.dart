@@ -24,9 +24,9 @@ class PhonePage extends StatefulWidget {
 
 class _PhonePageState extends State<PhonePage> {
   final TextEditingController phoneController = TextEditingController();
-  //final TextEditingController firstNameController = TextEditingController();
-  //final TextEditingController lastNameController = TextEditingController();
- // final TextEditingController birthDateController = TextEditingController();
+  final TextEditingController firstNameController = TextEditingController();
+  final TextEditingController lastNameController = TextEditingController();
+  final TextEditingController birthDateController = TextEditingController();
 
   File? idImage;
   File? faceImage;
@@ -171,6 +171,57 @@ class _PhonePageState extends State<PhonePage> {
                     children: [
                       SizedBox(height: 30),
 
+                      TextField(
+                        controller: firstNameController,
+                        decoration: InputDecoration(
+                          labelText: "First Name",
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 15),
+
+                      TextField(
+                        controller: lastNameController,
+                        decoration: InputDecoration(
+                          labelText: "Last Name",
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 15),
+
+                      TextField(
+                        controller: birthDateController,
+                        readOnly: true,
+                        decoration: InputDecoration(
+                          labelText: "Birth Date",
+                          hintText: "Select your birth date",
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                          suffixIcon: Icon(Icons.calendar_today),
+                        ),
+                        onTap: () async {
+                          DateTime? pickedDate = await showDatePicker(
+                            context: context,
+                            initialDate: DateTime(2000),
+                            firstDate: DateTime(1900),
+                            lastDate: DateTime.now(),
+                          );
+
+                          if (pickedDate != null) {
+                            birthDateController.text =
+                            "${pickedDate.year}-${pickedDate.month}-${pickedDate.day}";
+                            setState(() {});
+                          }
+                        },
+                      ),
+
+                      SizedBox(height: 25),
+
                       Row(
                         children: [
                           Container(
@@ -190,7 +241,7 @@ class _PhonePageState extends State<PhonePage> {
                               controller: phoneController,
                               keyboardType: TextInputType.phone,
                               decoration: InputDecoration(
-                                labelText: AppLocale.t('phone_number'),
+                                labelText: "Phone Number",
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(30),
                                 ),

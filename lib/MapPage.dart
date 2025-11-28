@@ -139,9 +139,7 @@ class _MapScreenState extends State<MapScreen> {
     if (currentLocation == null) return;
 
     try {
-      final PolylinePoints polylinePoints = PolylinePoints(
-        apiKey: "AIzaSyCnSc-MLAUUyP5kxdcJ7TVk1TyyL-Rqt7s",
-      );
+      final PolylinePoints polylinePoints = PolylinePoints();
 
       final result = await polylinePoints.getRouteBetweenCoordinates(
         request: PolylineRequest(
