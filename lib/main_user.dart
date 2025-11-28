@@ -4,6 +4,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:p2/AddItemPage%20.dart';
+import 'package:p2/EquipmentItem.dart';
 import 'Categories_Page.dart';
 import 'PaymentPage.dart';
 import 'Rently_Logo.dart';
@@ -66,7 +68,7 @@ class MyApp extends StatelessWidget {
           routes: {
             '/login': (context) => const LoginPage(),
             '/create': (context) => const CreateAccountPage(),
-            '/phone': (context) => const PhonePage(uid: '', email: '',),
+            '/phone': (context) => const PhonePage(),
             '/Code': (context) => const EnterTheCode(),
             '/orders': (context) => const OrdersPage(),
             '/setting': (context) => const SettingPage(),
@@ -74,6 +76,8 @@ class MyApp extends StatelessWidget {
             '/category': (context) => const CategoryPage(),
             '/userHome': (context) => const UserHomePage(),
             '/favorites': (context) => const FavouritePage(),
+           
+            '/add-item': (context) => const AddItemPage(item: null,),
           },
           onGenerateRoute: (settings) {
            
@@ -99,6 +103,13 @@ class MyApp extends StatelessWidget {
               );
             }
 
+            if (settings.name == '/add-item') {
+              final item = settings.arguments;
+              return MaterialPageRoute(
+                builder: (context) => AddItemPage(item: item as EquipmentItem?),
+                settings: settings,
+              );
+            }
            
             if (settings.name == '/map') {
               final latLng = settings.arguments as LatLng?;
