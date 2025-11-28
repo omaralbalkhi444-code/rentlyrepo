@@ -1,13 +1,12 @@
 import 'dart:io';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:p2/services/firestore_service.dart';
-import 'package:p2/services/storage_service.dart';
 import 'EquipmentItem.dart';
 import 'package:image_picker/image_picker.dart';
 
 class AddItemPage extends StatefulWidget {
-  const AddItemPage({super.key});
+  const AddItemPage({super.key, this.item});
+
+  final EquipmentItem? item;
 
   @override
   _AddItemPageState createState() => _AddItemPageState();
@@ -16,12 +15,14 @@ class AddItemPage extends StatefulWidget {
 class _AddItemPageState extends State<AddItemPage> {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController descController = TextEditingController();
-  final TextEditingController priceController = TextEditingController();
+  final TextEditingController pricePerHourController = TextEditingController();
+  final TextEditingController pricePerWeekController = TextEditingController();
+  final TextEditingController pricePerMonthController = TextEditingController();
+  final TextEditingController pricePerYearController = TextEditingController();
 
   String? selectedCategory;
-  File? pickedImage;
-  Condition? selectedCondition = Condition.good;
-  RentalType? selectedRentalType = RentalType.daily;
+  List<File> pickedImages = [];
+  RentalType? selectedRentalType = RentalType.hourly;
 
   final List<String> categories = [
     "Electronics",
@@ -33,91 +34,143 @@ class _AddItemPageState extends State<AddItemPage> {
     "Others"
   ];
 
-  Future pickImage() async {
-    final pickedFile =
-        await ImagePicker().pickImage(source: ImageSource.gallery);
-
-    if (pickedFile != null) {
+  Future pickImages() async {
+    final List<XFile>? pickedFiles = await ImagePicker().pickMultiImage();
+    
+    if (pickedFiles != null) {
       setState(() {
-        pickedImage = File(pickedFile.path);
+        pickedImages.addAll(pickedFiles.map((file) => File(file.path)).toList());
       });
     }
   }
 
-  Future<void> addItem() async {
+  void removeImage(int index) {
+    setState(() {
+      pickedImages.removeAt(index);
+    });
+  }
+
+  void addItem() {
     if (nameController.text.isEmpty ||
         descController.text.isEmpty ||
-        priceController.text.isEmpty ||
         selectedCategory == null ||
-        pickedImage == null ||
-        selectedCondition == null ||
-        selectedRentalType == null) {
+        pickedImages.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please fill all fields")),
+        const SnackBar(content: Text("Please fill all required fields")),
       );
       return;
     }
 
-    try {
-
-      final ownerId = FirebaseAuth.instance.currentUser!.uid;
-
-      String imageUrl = await StorageService.uploadUserImage(
-        ownerId,
-        pickedImage!,
-        "${DateTime.now().millisecondsSinceEpoch}.jpg",
-      );
-
-      await FirestoreService.submitItemForApproval(
-        ownerId: ownerId,
-        name: nameController.text.trim(),
-        description: descController.text.trim(),
-        price: double.parse(priceController.text.trim()),
-        category: selectedCategory!,
-        imageUrls: [imageUrl],
-      );
-
+   
+    if (pricePerHourController.text.isEmpty ||
+        pricePerWeekController.text.isEmpty ||
+        pricePerMonthController.text.isEmpty ||
+        pricePerYearController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Item submitted for approval")),
+        const SnackBar(content: Text("Please enter all prices")),
       );
-
-      Navigator.pop(context);
-
-    } catch (e) {
-      print("Error submitting item: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
-      );
+      return;
     }
+
+    final newItem = {
+      "name": nameController.text,
+      "desc": descController.text,
+      "pricePerHour": double.parse(pricePerHourController.text),
+      "pricePerWeek": double.parse(pricePerWeekController.text),
+      "pricePerMonth": double.parse(pricePerMonthController.text),
+      "pricePerYear": double.parse(pricePerYearController.text),
+      "category": selectedCategory,
+      "rentalType": "Hourly",
+      "images": pickedImages.map((image) => image.path).toList(),
+    };
+
+    Navigator.pop(context, newItem);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Add New Item"),
+        title: Text(widget.item == null ? "Add New Item" : "Edit Item"),
         backgroundColor: const Color(0xFF8A005D),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            InkWell(
-              onTap: pickImage,
-              child: Container(
-                height: 150,
-                width: 150,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Images",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
-                child: pickedImage == null
-                    ? const Icon(Icons.camera_alt, size: 40)
-                    : ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.file(pickedImage!, fit: BoxFit.cover),
-                      ),
-              ),
+                const SizedBox(height: 8),
+                InkWell(
+                  onTap: pickImages,
+                  child: Container(
+                    height: 100,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey[300]!),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.camera_alt, size: 30, color: Colors.grey[600]),
+                        const SizedBox(height: 8),
+                        Text(
+                          "Add Images (${pickedImages.length})",
+                          style: TextStyle(color: Colors.grey[600]),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (pickedImages.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    height: 100,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: pickedImages.length,
+                      itemBuilder: (context, index) {
+                        return Stack(
+                          children: [
+                            Container(
+                              width: 100,
+                              height: 100,
+                              margin: const EdgeInsets.only(right: 8),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                                image: DecorationImage(
+                                  image: FileImage(pickedImages[index]),
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              top: 4,
+                              right: 4,
+                              child: CircleAvatar(
+                                radius: 12,
+                                backgroundColor: Colors.red,
+                                child: IconButton(
+                                  padding: EdgeInsets.zero,
+                                  icon: const Icon(Icons.close, size: 12, color: Colors.white),
+                                  onPressed: () => removeImage(index),
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ],
             ),
             const SizedBox(height: 20),
             TextField(
@@ -137,14 +190,49 @@ class _AddItemPageState extends State<AddItemPage> {
               ),
             ),
             const SizedBox(height: 15),
+            
+            const Text(
+              "Prices (Required for all periods):",
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            
             TextField(
-              controller: priceController,
+              controller: pricePerHourController,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
-                labelText: "Price / day (JD)",
+                labelText: "Price per hour (JD)",
                 border: OutlineInputBorder(),
               ),
             ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: pricePerWeekController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: "Price per week (JD)",
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: pricePerMonthController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: "Price per month (JD)",
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: pricePerYearController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: "Price per year (JD)",
+                border: OutlineInputBorder(),
+              ),
+            ),
+
             const SizedBox(height: 15),
             DropdownButtonFormField<String>(
               decoration: const InputDecoration(
@@ -161,52 +249,6 @@ class _AddItemPageState extends State<AddItemPage> {
                 });
               },
             ),
-            const SizedBox(height: 15),
-            DropdownButtonFormField<Condition>(
-              decoration: const InputDecoration(
-                labelText: "Condition",
-                border: OutlineInputBorder(),
-              ),
-              value: selectedCondition,
-              items: Condition.values
-                  .map((c) => DropdownMenuItem(
-                        value: c,
-                        child: Text(c == Condition.newCondition
-                            ? "New"
-                            : c == Condition.good
-                                ? "Good"
-                                : "Used"),
-                      ))
-                  .toList(),
-              onChanged: (val) {
-                setState(() {
-                  selectedCondition = val;
-                });
-              },
-            ),
-            const SizedBox(height: 15),
-            DropdownButtonFormField<RentalType>(
-              decoration: const InputDecoration(
-                labelText: "Rental Type",
-                border: OutlineInputBorder(),
-              ),
-              value: selectedRentalType,
-              items: RentalType.values
-                  .map((r) => DropdownMenuItem(
-                        value: r,
-                        child: Text(r == RentalType.daily
-                            ? "Daily"
-                            : r == RentalType.weekly
-                                ? "Weekly"
-                                : "Monthly"),
-                      ))
-                  .toList(),
-              onChanged: (val) {
-                setState(() {
-                  selectedRentalType = val;
-                });
-              },
-            ),
             const SizedBox(height: 30),
             SizedBox(
               width: double.infinity,
@@ -216,9 +258,9 @@ class _AddItemPageState extends State<AddItemPage> {
                   backgroundColor: const Color(0xFF8A005D),
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
-                child: const Text(
-                  "Add Item",
-                  style: TextStyle(fontSize: 18, color: Colors.white),
+                child: Text(
+                  widget.item == null ? "Add Item" : "Update Item",
+                  style: const TextStyle(fontSize: 18, color: Colors.white),
                 ),
               ),
             ),
