@@ -25,9 +25,8 @@ import 'AddItemPage .dart';
 import 'Payment2.dart';
 import 'Last Activity.dart';
 import 'withdraw_page.dart';
-
-// ignore: depend_on_referenced_packages
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 
 class UserHomePage extends StatelessWidget {
   const UserHomePage({super.key});
@@ -42,6 +41,9 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
+  );
+  await FirebaseAppCheck.instance.activate(
+    androidProvider: AndroidProvider.playIntegrity,
   );
   runApp(const MyApp());
 }
