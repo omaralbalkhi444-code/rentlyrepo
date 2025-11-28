@@ -1,11 +1,12 @@
 
+
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 
-const String kGoogleApiKey = "YOUR_REAL_GOOGLE_API_KEY_HERE";
+const String kGoogleApiKey = "AIzaSyCnSc-MLAUUyP5kxdcJ7TVk1TyyL-Rqt7s";
 
 class MapScreen extends StatefulWidget {
   final LatLng initialPosition;
