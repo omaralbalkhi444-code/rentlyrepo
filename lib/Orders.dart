@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'package:p2/AddItemPage%20.dart';
 import 'package:p2/Chats_Page.dart';
@@ -7,7 +8,6 @@ import 'app_locale.dart';
 import 'Setting.dart';
 import 'Categories_Page.dart';
 import 'EquipmentItem.dart';
-
 
 class OrdersPage extends StatefulWidget {
   const OrdersPage({super.key});
@@ -24,6 +24,10 @@ class _OrdersPageState extends State<OrdersPage> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final isSmallScreen = screenWidth < 360;
+
     return ValueListenableBuilder<Locale>(
       valueListenable: AppLocale.locale,
       builder: (context, locale, child) {
@@ -35,7 +39,10 @@ class _OrdersPageState extends State<OrdersPage> {
                 clipper: SideCurveClipper(),
                 child: Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.only(top: 50, bottom: 60),
+                  padding: EdgeInsets.only(
+                    top: screenHeight * 0.06,
+                    bottom: screenHeight * 0.07,
+                  ),
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
                       colors: [Color(0xFF1F0F46), Color(0xFF8A005D)],
@@ -43,25 +50,22 @@ class _OrdersPageState extends State<OrdersPage> {
                       end: Alignment.bottomCenter,
                     ),
                   ),
-
-                 
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const SizedBox(width: 40),
-
+                      SizedBox(width: screenWidth * 0.1),
                       Text(
                         AppLocale.t('orders'),
-                        style: const TextStyle(
-                          fontSize: 22,
+                        style: TextStyle(
+                          fontSize: isSmallScreen ? 20 : 22,
                           fontWeight: FontWeight.w600,
                           color: Colors.white,
                         ),
                       ),
-
                       IconButton(
-                        icon: const Icon(Icons.payment,
-                            color: Colors.white, size: 28),
+                        icon: Icon(Icons.payment,
+                            color: Colors.white, 
+                            size: isSmallScreen ? 24 : 28),
                         onPressed: () {
                           Navigator.push(
                             context,
@@ -75,38 +79,38 @@ class _OrdersPageState extends State<OrdersPage> {
                   ),
                 ),
               ),
-
-              const SizedBox(height: 20),
-
+              SizedBox(height: screenHeight * 0.02),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  buildTab(AppLocale.t('new_orders'), 0),
-                  const SizedBox(width: 40),
-                  buildTab(AppLocale.t('current_orders'), 1),
-                  const SizedBox(width: 40),
-                  buildTab(AppLocale.t('previous_orders'), 2),
+                  buildTab(AppLocale.t('new_orders'), 0, screenWidth),
+                  SizedBox(width: isSmallScreen ? 20 : 40),
+                  buildTab(AppLocale.t('current_orders'), 1, screenWidth),
+                  SizedBox(width: isSmallScreen ? 20 : 40),
+                  buildTab(AppLocale.t('previous_orders'), 2, screenWidth),
                 ],
               ),
-
-              const SizedBox(height: 25),
-
-              Expanded(child: buildTabContent()),
+              SizedBox(height: screenHeight * 0.03),
+              Expanded(child: buildTabContent(screenWidth)),
             ],
           ),
-
-          bottomNavigationBar: buildBottomNav(),
+          bottomNavigationBar: buildBottomNav(screenWidth),
         );
       },
     );
   }
 
-  Widget buildTab(String text, int index) {
+  Widget buildTab(String text, int index, double screenWidth) {
     bool active = selectedTab == index;
+    final isSmallScreen = screenWidth < 360;
+    
     return GestureDetector(
       onTap: () => setState(() => selectedTab = index),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 12),
+        padding: EdgeInsets.symmetric(
+          horizontal: isSmallScreen ? 15 : 25,
+          vertical: isSmallScreen ? 10 : 12,
+        ),
         decoration: BoxDecoration(
           border: Border.all(
             color: active ? const Color(0xFF8A005D) : Colors.black,
@@ -118,7 +122,7 @@ class _OrdersPageState extends State<OrdersPage> {
         child: Text(
           text,
           style: TextStyle(
-            fontSize: 18,
+            fontSize: isSmallScreen ? 14 : 18,
             color: active ? const Color(0xFF8A005D) : Colors.black,
             fontWeight: FontWeight.w600,
           ),
@@ -127,7 +131,7 @@ class _OrdersPageState extends State<OrdersPage> {
     );
   }
 
-  Widget buildTabContent() {
+  Widget buildTabContent(double screenWidth) {
     List<EquipmentItem> items;
     String emptyText;
 
@@ -144,30 +148,52 @@ class _OrdersPageState extends State<OrdersPage> {
 
     if (items.isEmpty) {
       return Center(
-        child: Text(emptyText,
-            style: const TextStyle(fontSize: 16, color: Colors.grey)),
+        child: Text(
+          emptyText,
+          style: TextStyle(
+            fontSize: screenWidth < 360 ? 14 : 16,
+            color: Colors.grey
+          ),
+        ),
       );
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(screenWidth * 0.05),
       itemCount: items.length,
       itemBuilder: (context, index) {
         final item = items[index];
         return Card(
-          margin: const EdgeInsets.only(bottom: 15),
+          margin: EdgeInsets.only(bottom: screenWidth * 0.04),
           elevation: 3,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
           child: ListTile(
-            leading: Icon(item.icon, color: const Color(0xFF8A005D), size: 35),
-            title: Text(item.title, style: const TextStyle(fontSize: 18)),
-            subtitle: Text("\$${item.pricePerDay.toStringAsFixed(2)} / day"),
+            leading: Icon(
+              item.icon, 
+              color: const Color(0xFF8A005D), 
+              size: screenWidth < 360 ? 28 : 35
+            ),
+            title: Text(
+              item.title, 
+              style: TextStyle(
+                fontSize: screenWidth < 360 ? 16 : 18
+              )
+            ),
+            subtitle: Text(
+              "JOD ${item.getPriceForRentalType(item.rentalType).toStringAsFixed(2)} / ${_getRentalTypeText(item.rentalType)}",
+              style: TextStyle(
+                fontSize: screenWidth < 360 ? 12 : 14
+              ),
+            ),
             trailing: IconButton(
-              icon: const Icon(Icons.qr_code,
-                  color: Color(0xFF1F0F46), size: 30),
+              icon: Icon(
+                Icons.qr_code,
+                color: const Color(0xFF1F0F46), 
+                size: screenWidth < 360 ? 24 : 30
+              ),
               onPressed: () {
                 String qrData =
-                    "Item: ${item.title}\nPrice: \$${item.pricePerDay}\nCondition: ${item.condition.name}";
+                    "Item: ${item.title}\nPrice: JOD ${item.getPriceForRentalType(item.rentalType).toStringAsFixed(2)}\nRental Type: ${_getRentalTypeText(item.rentalType)}";
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -182,11 +208,24 @@ class _OrdersPageState extends State<OrdersPage> {
     );
   }
 
-  
+  String _getRentalTypeText(RentalType type) {
+    switch (type) {
+      case RentalType.hourly:
+        return 'hour';
+      case RentalType.weekly:
+        return 'week';
+      case RentalType.monthly:
+        return 'month';
+      case RentalType.yearly:
+        return 'year';
+    }
+  }
 
-  Widget buildBottomNav() {
+  Widget buildBottomNav(double screenWidth) {
+    final isSmallScreen = screenWidth < 360;
+    
     return Container(
-      height: 70,
+      height: isSmallScreen ? 60 : 70,
       decoration: const BoxDecoration(
         color: Color(0xFF1B2230),
         borderRadius: BorderRadius.only(
@@ -197,33 +236,32 @@ class _OrdersPageState extends State<OrdersPage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          buildBottomIcon(Icons.settings, 0, const SettingPage()),
-          buildBottomIcon(Icons.inventory_2_outlined, 1, const OrdersPage()),
-          buildBottomIcon(Icons.add, 2, null), // زر +
-          buildBottomIcon(Icons.chat_bubble_outline, 3, const ChatsPage()),
-          buildBottomIcon(Icons.home_outlined, 4, const CategoryPage()),
+          buildBottomIcon(Icons.settings, 0, const SettingPage(), screenWidth),
+          buildBottomIcon(Icons.inventory_2_outlined, 1, const OrdersPage(), screenWidth),
+          buildBottomIcon(Icons.add, 2, null, screenWidth),
+          buildBottomIcon(Icons.chat_bubble_outline, 3, const ChatsPage(), screenWidth),
+          buildBottomIcon(Icons.home_outlined, 4, const CategoryPage(), screenWidth),
         ],
       ),
     );
   }
 
-  Widget buildBottomIcon(IconData icon, int index, Widget? page) {
+  Widget buildBottomIcon(IconData icon, int index, Widget? page, double screenWidth) {
     bool active = selectedBottom == index;
+    final isSmallScreen = screenWidth < 360;
 
     return GestureDetector(
       onTap: () {
         setState(() => selectedBottom = index);
 
-       
         if (index == 2) {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => const AddItemPage()),
+            MaterialPageRoute(builder: (context) => const AddItemPage(item: null)),
           );
           return;
         }
 
-      
         if (page != null) {
           Navigator.pushReplacement(
             context,
@@ -234,8 +272,8 @@ class _OrdersPageState extends State<OrdersPage> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
         curve: Curves.easeOut,
-        margin: EdgeInsets.only(bottom: active ? 8 : 0),
-        padding: const EdgeInsets.all(12),
+        margin: EdgeInsets.only(bottom: active ? (isSmallScreen ? 6 : 8) : 0),
+        padding: EdgeInsets.all(isSmallScreen ? 10 : 12),
         decoration: active
             ? BoxDecoration(
                 color: Colors.grey[300],
@@ -251,7 +289,7 @@ class _OrdersPageState extends State<OrdersPage> {
             : null,
         child: Icon(
           icon,
-          size: active ? 32 : 26,
+          size: active ? (isSmallScreen ? 28 : 32) : (isSmallScreen ? 22 : 26),
           color: active ? Colors.black : Colors.white70,
         ),
       ),
@@ -305,5 +343,4 @@ class SideCurveClipper extends CustomClipper<Path> {
   @override
   bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }
-
 
