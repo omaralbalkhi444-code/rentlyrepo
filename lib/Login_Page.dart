@@ -68,7 +68,7 @@ class _LoginPageState extends State<LoginPage> {
     if (error == null) {
      
       if (!mounted) return;
-      Navigator.pushReplacementNamed(context, '/userHome');
+      Navigator.pushReplacementNamed(context, '/category');
     } else {
      
       setState(() {
