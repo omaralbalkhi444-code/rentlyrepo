@@ -79,10 +79,10 @@ class _PhonePageState extends State<PhonePage> {
       await FirestoreService.submitUserForApproval(
         uid: widget.uid,
         email: widget.email,
-        //firstName: firstNameController.text.trim(),
-       // lastName: lastNameController.text.trim(),
+        firstName: firstNameController.text.trim(),
+        lastName: lastNameController.text.trim(),
+        birthDate: birthDateController.text.trim(),
         phone: phoneController.text.trim(),
-        //birthDate: birthDateController.text.trim(),
         idPhotoUrl: idUrl,
         selfiePhotoUrl: selfieUrl,
       );
