@@ -54,6 +54,14 @@ class _PhonePageState extends State<PhonePage> {
   void validateAndContinue() async {
     try {
 
+      if (firstNameController.text.trim().isEmpty ||
+          lastNameController.text.trim().isEmpty ||
+          birthDateController.text.trim().isEmpty ||
+          phoneController.text.trim().isEmpty) {
+        showMsg("Please fill all required fields.");
+        return;
+      }
+
       if (idImage == null) {
         showMsg("Please upload your ID photo");
         return;

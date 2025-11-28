@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:p2/services/firestore_service.dart';
 
 class UserManagementPage extends StatelessWidget {
   const UserManagementPage({super.key});
@@ -7,7 +9,7 @@ class UserManagementPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 3,
+      length: 2,
       child: Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,
@@ -23,9 +25,9 @@ class UserManagementPage extends StatelessWidget {
           title: Row(
             children: [
               IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                icon: const Icon(Icons.arrow_back, color: Colors.white, size: 28),
                 onPressed: () {
-                  context.pop(); 
+                  context.go('/dashboard');
                 },
               ),
               const SizedBox(width: 8),
@@ -43,16 +45,14 @@ class UserManagementPage extends StatelessWidget {
             labelColor: Colors.white,
             unselectedLabelColor: Colors.white70,
             tabs: [
-              Tab(text: "Renter Requests"),
-              Tab(text: "Owner Requests"),
+              Tab(text: "Pending Users"),
               Tab(text: "Active Users"),
             ],
           ),
         ),
         body: const TabBarView(
           children: [
-            RenterRequestsTab(),
-            OwnerRequestsTab(),
+            PendingUsersTab(),
             ActiveUsersTab(),
           ],
         ),
@@ -61,76 +61,63 @@ class UserManagementPage extends StatelessWidget {
   }
 }
 
-class RenterRequestsTab extends StatelessWidget {
-  const RenterRequestsTab({super.key});
+class PendingUsersTab extends StatelessWidget {
+  const PendingUsersTab({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final renters = [
-      {"name": "A", "email": "a@mail.com"},
-      {"name": "B", "email": "b@mail.com"},
-    ];
-    return ListView(
-      children: renters.map((renter) {
-        return Card(
-          margin: const EdgeInsets.all(8),
-          color: const Color(0xFFE3DFF3),
-          child: ListTile(
-            title: Text(renter['name']!),
-            subtitle: Text(renter['email']!),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.check, color: Colors.green),
-                  onPressed: () {},
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close, color: Colors.red),
-                  onPressed: () {},
-                ),
-              ],
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-}
+    return StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection("pending_users")
+            .where("status", isEqualTo: "pending")
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return const Center(child: Text("Error loading data"));
+          }
 
-class OwnerRequestsTab extends StatelessWidget {
-  const OwnerRequestsTab({super.key});
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-  @override
-  Widget build(BuildContext context) {
-    final owners = [
-      {"name": "C", "email": "c@mail.com"},
-      {"name": "D", "email": "d@mail.com"},
-    ];
-    return ListView(
-      children: owners.map((owner) {
-        return Card(
-          margin: const EdgeInsets.all(8),
-          color: const Color(0xFFDDEBF7),
-          child: ListTile(
-            title: Text(owner['name']!),
-            subtitle: Text(owner['email']!),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.check, color: Colors.green),
-                  onPressed: () {},
+          final users = snapshot.data!.docs;
+
+          if (users.isEmpty) {
+            return const Center(child: Text("No pending users"));
+          }
+
+          return ListView(
+            children: users.map((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+
+              return Card(
+                margin: const EdgeInsets.all(8),
+                color: const Color(0xFFE3DFF3),
+                child: ListTile(
+                  title: Text("${data['firstName']} ${data['lastName']}"),
+                  subtitle: Text(data['email'] ?? ""),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.check, color: Colors.green),
+                        onPressed: () async {
+                          await FirestoreService().approveUser(doc.id);
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.red),
+                        onPressed: () async {
+                          await FirestoreService().rejectUser(doc.id);
+                        },
+                      ),
+                    ],
+                  ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.close, color: Colors.red),
-                  onPressed: () {},
-                ),
-              ],
-            ),
-          ),
-        );
-      }).toList(),
+              );
+            }).toList(),
+          );
+        },
     );
   }
 }
@@ -140,25 +127,47 @@ class ActiveUsersTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final users = [
-      {"name": "E", "email": "e@mail.com"},
-      {"name": "F", "email": "f@mail.com"},
-    ];
-    return ListView(
-      children: users.map((user) {
-        return Card(
-          margin: const EdgeInsets.all(8),
-          color: const Color(0xFFFFE5E5),
-          child: ListTile(
-            title: Text(user['name']!),
-            subtitle: Text(user['email']!),
-            trailing: IconButton(
-              icon: const Icon(Icons.delete, color: Colors.red),
-              onPressed: () {},
-            ),
-          ),
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance.collection("users").snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return const Center(child: Text("Error loading users"));
+        }
+
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final users = snapshot.data!.docs;
+
+        if (users.isEmpty) {
+          return const Center(child: Text("No active users"));
+        }
+
+        return ListView(
+          children: users.map((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+
+            return Card(
+              margin: const EdgeInsets.all(8),
+              color: const Color(0xFFFFE5E5),
+              child: ListTile(
+                title: Text("${data['firstName']} ${data['lastName']}"),
+                subtitle: Text(data['email'] ?? ""),
+                trailing: IconButton(
+                  icon: const Icon(Icons.delete, color: Colors.red),
+                  onPressed: () async {
+                    await FirebaseFirestore.instance
+                        .collection("users")
+                        .doc(doc.id)
+                        .delete();
+                  },
+                ),
+              ),
+            );
+          }).toList(),
         );
-      }).toList(),
+      },
     );
   }
 }
