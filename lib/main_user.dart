@@ -4,7 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:p2/AddItemPage%20.dart';
+
 import 'package:p2/EquipmentItem.dart';
 import 'Categories_Page.dart';
 import 'PaymentPage.dart';
@@ -22,6 +22,10 @@ import 'Equipment_Detail_Page.dart';
 import 'Favourite.dart';
 import 'firebase_options.dart';
 import 'MapPage.dart';
+import 'Payment2.dart';
+import 'withdraw_page.dart';
+import 'AddItemPage .dart';
+
 
 // ignore: depend_on_referenced_packages
 import 'package:firebase_core/firebase_core.dart';
@@ -64,11 +68,11 @@ class MyApp extends StatelessWidget {
             GlobalCupertinoLocalizations.delegate,
           ],
 
-          home: RentlyApp(),
+          home: const RentlyApp(),
           routes: {
             '/login': (context) => const LoginPage(),
             '/create': (context) => const CreateAccountPage(),
-            '/phone': (context) => const PhonePage(),
+            '/phone': (context) => const PhonePage(uid: '', email: ''),
             '/Code': (context) => const EnterTheCode(),
             '/orders': (context) => const OrdersPage(),
             '/setting': (context) => const SettingPage(),
@@ -76,8 +80,24 @@ class MyApp extends StatelessWidget {
             '/category': (context) => const CategoryPage(),
             '/userHome': (context) => const UserHomePage(),
             '/favorites': (context) => const FavouritePage(),
-           
-            '/add-item': (context) => const AddItemPage(item: null,),
+            '/cardPayment': (context) {
+              final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+              return CardPaymentPage(
+                originalPrice: args?['originalPrice'] ?? 0.0,
+                discount: args?['discount'] ?? 0.0,
+                finalPrice: args?['finalPrice'] ?? 0.0,
+                totalOrder: args?['totalOrder'] ?? 0.0,
+              );
+            },
+            '/withdraw': (context) {
+              final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+              return WithdrawPage(
+                originalPrice: args?['originalPrice'] ?? 0.0,
+                discount: args?['discount'] ?? 0.0,
+                finalPrice: args?['finalPrice'] ?? 0.0,
+                totalOrder: args?['totalOrder'] ?? 0.0,
+              );
+            },
           },
           onGenerateRoute: (settings) {
            
@@ -97,16 +117,17 @@ class MyApp extends StatelessWidget {
 
           
             if (settings.name == EquipmentDetailPage.routeName) {
+              final equipment = settings.arguments as EquipmentItem?;
               return MaterialPageRoute(
-                builder: (context) => const EquipmentDetailPage(),
+                builder: (context) => EquipmentDetailPage(),
                 settings: settings,
               );
             }
 
             if (settings.name == '/add-item') {
-              final item = settings.arguments;
+              final item = settings.arguments as EquipmentItem?;
               return MaterialPageRoute(
-                builder: (context) => AddItemPage(item: item as EquipmentItem?),
+                builder: (context) => AddItemPage(item: item),
                 settings: settings,
               );
             }
@@ -127,6 +148,33 @@ class MyApp extends StatelessWidget {
                   settings: settings,
                 );
               }
+            }
+
+           
+            if (settings.name == '/cardPaymentWithParams') {
+              final args = settings.arguments as Map<String, dynamic>?;
+              return MaterialPageRoute(
+                builder: (context) => CardPaymentPage(
+                  originalPrice: args?['originalPrice'] ?? 0.0,
+                  discount: args?['discount'] ?? 0.0,
+                  finalPrice: args?['finalPrice'] ?? 0.0,
+                  totalOrder: args?['totalOrder'] ?? 0.0,
+                ),
+                settings: settings,
+              );
+            }
+
+            if (settings.name == '/withdrawWithParams') {
+              final args = settings.arguments as Map<String, dynamic>?;
+              return MaterialPageRoute(
+                builder: (context) => WithdrawPage(
+                  originalPrice: args?['originalPrice'] ?? 0.0,
+                  discount: args?['discount'] ?? 0.0,
+                  finalPrice: args?['finalPrice'] ?? 0.0,
+                  totalOrder: args?['totalOrder'] ?? 0.0,
+                ),
+                settings: settings,
+              );
             }
 
             return null;
@@ -182,7 +230,6 @@ class _MainPageState extends State<MainPage> {
     );
   }
 }
-
 
 
 
