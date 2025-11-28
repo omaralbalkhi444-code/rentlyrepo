@@ -1,10 +1,11 @@
+
+
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
 import 'Orders.dart';
 import 'EquipmentItem.dart';
 import 'Favourite.dart';
-import 'MapPage.dart';
 
 class EquipmentDetailPage extends StatefulWidget {
   static const routeName = '/product-details';
@@ -17,6 +18,8 @@ class EquipmentDetailPage extends StatefulWidget {
 class _EquipmentDetailPageState extends State<EquipmentDetailPage> {
   bool isFavoritePressed = false;
   int _currentPage = 0;
+  
+  RentalType selectedRentalType = RentalType.hourly;
 
   DateTime? startDate;
   DateTime? endDate;
@@ -46,6 +49,26 @@ class _EquipmentDetailPageState extends State<EquipmentDetailPage> {
     }
   }
 
+  double calculateTotalPrice(EquipmentItem equipment) {
+    final basePrice = equipment.getPriceForRentalType(selectedRentalType);
+    
+    if (startDate != null && endDate != null) {
+      final difference = endDate!.difference(startDate!).inDays;
+      switch (selectedRentalType) {
+        case RentalType.hourly:
+          return basePrice * 24 * difference;
+        case RentalType.weekly:
+          return basePrice * (difference / 7);
+        case RentalType.monthly:
+          return basePrice * (difference / 30);
+        case RentalType.yearly:
+          return basePrice * (difference / 365);
+      }
+    }
+    
+    return basePrice;
+  }
+
   @override
   Widget build(BuildContext context) {
     final equipment =
@@ -70,7 +93,6 @@ class _EquipmentDetailPageState extends State<EquipmentDetailPage> {
         child: SingleChildScrollView(
           child: Column(
             children: [
-             
               Container(
                 height: 280,
                 margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -85,50 +107,18 @@ class _EquipmentDetailPageState extends State<EquipmentDetailPage> {
                       onPageChanged: (index) {
                         setState(() => _currentPage = index);
                       },
-                      itemCount: equipment.images.isEmpty
-                          ? 1
-                          : equipment.images.length,
+                      itemCount: 3,
                       itemBuilder: (context, index) {
                         return Container(
                           color: Colors.white,
                           alignment: Alignment.center,
-                          child: equipment.images.isEmpty
-                              ? Icon(
-                                  equipment.icon,
-                                  size: 140,
-                                  color: const Color(0xFF8A005D),
-                                )
-                              : Image.network(
-                                  equipment.images[index],
-                                  fit: BoxFit.cover,
-                                ),
+                          child: Icon(
+                            equipment.icon,
+                            size: 140,
+                            color: const Color(0xFF8A005D),
+                          ),
                         );
                       },
-                    ),
-                    Positioned(
-                      bottom: 10,
-                      left: 0,
-                      right: 0,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: List.generate(
-                          equipment.images.isEmpty
-                              ? 1
-                              : equipment.images.length,
-                          (index) => AnimatedContainer(
-                            duration: const Duration(milliseconds: 300),
-                            margin: const EdgeInsets.symmetric(horizontal: 4),
-                            width: _currentPage == index ? 10 : 8,
-                            height: _currentPage == index ? 10 : 8,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: _currentPage == index
-                                  ? const Color(0xFF8A005D)
-                                  : Colors.grey[400],
-                            ),
-                          ),
-                        ),
-                      ),
                     ),
                     Positioned(
                       top: 20,
@@ -179,11 +169,30 @@ class _EquipmentDetailPageState extends State<EquipmentDetailPage> {
                         ),
                       ),
                     ),
+                    Positioned(
+                      bottom: 10,
+                      left: 0,
+                      right: 0,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(3, (index) {
+                          return Container(
+                            width: 8,
+                            height: 8,
+                            margin: const EdgeInsets.symmetric(horizontal: 4),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: _currentPage == index
+                                  ? const Color(0xFF8A005D)
+                                  : Colors.grey,
+                            ),
+                          );
+                        }),
+                      ),
+                    ),
                   ],
                 ),
               ),
-
-            
               Padding(
                 padding: const EdgeInsets.all(20),
                 child: Column(
@@ -197,8 +206,6 @@ class _EquipmentDetailPageState extends State<EquipmentDetailPage> {
                           color: Colors.black87),
                     ),
                     const SizedBox(height: 10),
-
-                   
                     Row(
                       children: [
                         GestureDetector(
@@ -207,50 +214,103 @@ class _EquipmentDetailPageState extends State<EquipmentDetailPage> {
                               context: context,
                               builder: (context) {
                                 double tempRating = userRating;
-
-                                return AlertDialog(
-                                  title: const Text("Rate this product"),
-                                  content: StatefulBuilder(
-                                    builder: (context, setStateSB) {
-                                      return Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: List.generate(5, (index) {
-                                          return IconButton(
-                                            onPressed: () {
-                                              setStateSB(() {
-                                                tempRating =
-                                                    (index + 1).toDouble();
-                                              });
-                                            },
-                                            icon: Icon(
-                                              Icons.star,
-                                              color: (index + 1) <= tempRating
-                                                  ? Colors.amber
-                                                  : Colors.grey,
-                                              size: 35,
+                                return Dialog(
+                                  backgroundColor: Colors.transparent,
+                                  insetPadding: const EdgeInsets.all(20),
+                                  child: Container(
+                                    width: MediaQuery.of(context).size.width * 0.9,
+                                    padding: const EdgeInsets.all(20),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    child: StatefulBuilder(
+                                      builder: (context, setStateSB) {
+                                        return Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Text(
+                                              "Rate this product",
+                                              style: TextStyle(
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.bold,
+                                              ),
                                             ),
-                                          );
-                                        }),
-                                      );
-                                    },
-                                  ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () =>
-                                          Navigator.pop(context),
-                                      child: const Text("Cancel"),
-                                    ),
-                                    ElevatedButton(
-                                      onPressed: () {
-                                        setState(() {
-                                          userRating = tempRating;
-                                        });
-                                        Navigator.pop(context);
+                                            const SizedBox(height: 20),
+                                            Row(
+                                              mainAxisAlignment: MainAxisAlignment.center,
+                                              children: List.generate(5, (index) {
+                                                return IconButton(
+                                                  onPressed: () {
+                                                    setStateSB(() {
+                                                      tempRating = (index + 1).toDouble();
+                                                    });
+                                                  },
+                                                  icon: Icon(
+                                                    Icons.star,
+                                                    color: (index + 1) <= tempRating
+                                                        ? Colors.amber
+                                                        : Colors.grey,
+                                                    size: 40,
+                                                  ),
+                                                );
+                                              }),
+                                            ),
+                                            const SizedBox(height: 20),
+                                            Container(
+                                              height: 4,
+                                              width: double.infinity,
+                                              decoration: BoxDecoration(
+                                                gradient: const LinearGradient(
+                                                  colors: [Colors.amber, Colors.grey],
+                                                  begin: Alignment.centerLeft,
+                                                  end: Alignment.centerRight,
+                                                ),
+                                                borderRadius: BorderRadius.circular(2),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 20),
+                                            Row(
+                                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                              children: [
+                                                Expanded(
+                                                  child: TextButton(
+                                                    onPressed: () => Navigator.pop(context),
+                                                    style: TextButton.styleFrom(
+                                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                                    ),
+                                                    child: const Text(
+                                                      "Cancel",
+                                                      style: TextStyle(fontSize: 16),
+                                                    ),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 10),
+                                                Expanded(
+                                                  child: ElevatedButton(
+                                                    onPressed: () {
+                                                      setState(() {
+                                                        userRating = tempRating;
+                                                      });
+                                                      Navigator.pop(context);
+                                                    },
+                                                    style: ElevatedButton.styleFrom(
+                                                      backgroundColor: const Color(0xFF8A005D),
+                                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                                    ),
+                                                    child: const Text(
+                                                      "OK",
+                                                      style: TextStyle(fontSize: 16, color: Colors.white),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        );
                                       },
-                                      child: const Text("OK"),
                                     ),
-                                  ],
+                                  ),
                                 );
                               },
                             );
@@ -266,8 +326,6 @@ class _EquipmentDetailPageState extends State<EquipmentDetailPage> {
                           ),
                         ),
                         const SizedBox(width: 20),
-
-                       
                         GestureDetector(
                           onTap: () {
                             setState(() {
@@ -286,27 +344,54 @@ class _EquipmentDetailPageState extends State<EquipmentDetailPage> {
                             style: const TextStyle(fontSize: 14)),
                       ],
                     ),
-
                     const SizedBox(height: 14),
-                    Text(
-                      "Rental Price: \$${equipment.pricePerDay * 7}/Week",
-                      style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF8A005D)),
+                    
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "Rental Period:",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              _buildRentalTypeChip("Hourly", RentalType.hourly, equipment),
+                              const SizedBox(width: 8),
+                              _buildRentalTypeChip("Weekly", RentalType.weekly, equipment),
+                              const SizedBox(width: 8),
+                              _buildRentalTypeChip("Monthly", RentalType.monthly, equipment),
+                              const SizedBox(width: 8),
+                              _buildRentalTypeChip("Yearly", RentalType.yearly, equipment),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          "Total: JOD ${calculateTotalPrice(equipment).toStringAsFixed(2)}",
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF8A005D),
+                          ),
+                        ),
+                      ],
                     ),
+                    
                     const SizedBox(height: 14),
-
                     Text(equipment.description,
                         style: const TextStyle(
                             fontSize: 14, color: Colors.black54)),
                     const SizedBox(height: 14),
-
                     Text("Release Year: ${equipment.releaseYear}",
                         style: const TextStyle(
                             fontSize: 14, color: Colors.black87)),
                     const SizedBox(height: 14),
-
                     const Text("Specifications:",
                         style: TextStyle(
                             fontSize: 16, fontWeight: FontWeight.bold)),
@@ -314,10 +399,7 @@ class _EquipmentDetailPageState extends State<EquipmentDetailPage> {
                       (spec) =>
                           Text("• $spec", style: const TextStyle(fontSize: 14)),
                     ),
-
                     const SizedBox(height: 20),
-
-                   
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -336,7 +418,6 @@ class _EquipmentDetailPageState extends State<EquipmentDetailPage> {
                       ],
                     ),
                     const SizedBox(height: 12),
-
                     ElevatedButton(
                       onPressed: () async {
                         final TimeOfDay? picked = await showTimePicker(
@@ -353,10 +434,7 @@ class _EquipmentDetailPageState extends State<EquipmentDetailPage> {
                           ? "Select Pickup Time"
                           : pickupTime!),
                     ),
-
                     const SizedBox(height: 20),
-
-                   
                     ElevatedButton(
                       onPressed: () {
                         TextEditingController c = TextEditingController();
@@ -383,10 +461,10 @@ class _EquipmentDetailPageState extends State<EquipmentDetailPage> {
                                   onPressed: () {
                                     if (c.text.isNotEmpty) {
                                       setState(() {
-                                       
                                         equipment.userReviews =
                                             List<String>.from(
-                                                equipment.userReviews);
+                                          equipment.userReviews,
+                                        );
                                         equipment.userReviews.add(c.text);
                                         equipment.reviews++;
                                       });
@@ -402,9 +480,7 @@ class _EquipmentDetailPageState extends State<EquipmentDetailPage> {
                       },
                       child: const Text("Write Review"),
                     ),
-
                     const SizedBox(height: 10),
-
                     if (equipment.userReviews.isNotEmpty)
                       TextButton(
                         onPressed: () {
@@ -437,68 +513,73 @@ class _EquipmentDetailPageState extends State<EquipmentDetailPage> {
                         },
                         child: const Text("See All"),
                       ),
-
                     const SizedBox(height: 20),
-
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        ElevatedButton(
-                          onPressed: () {
-                            OrdersManager.addOrder(equipment);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                    '${equipment.title} added to Orders'),
-                                duration: const Duration(seconds: 1),
-                              ),
-                            );
-                            Future.delayed(
-                                const Duration(milliseconds: 300), () {
-                              Navigator.pushNamed(context, '/orders');
-                            });
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF8A005D),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 30, vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30),
-                            ),
+                    ElevatedButton(
+                      onPressed: () {
+                        OrdersManager.addOrder(equipment);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content:
+                                Text('${equipment.title} added to Orders'),
+                            duration: const Duration(seconds: 1),
                           ),
-                          child: const Text(
-                            "Rent Now",
-                            style: TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.bold),
-                          ),
+                        );
+                        Future.delayed(
+                            const Duration(milliseconds: 300), () {
+                          Navigator.pushNamed(context, '/orders');
+                        });
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF8A005D),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 30, vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
                         ),
-                        TextButton(
-                          onPressed: () {
-                            if (equipment.latitude != null &&
-                                equipment.longitude != null) {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => MapScreen(
-                                    initialPosition: LatLng(
-                                        equipment.latitude!,
-                                        equipment.longitude!),
-                                  ),
-                                ),
-                              );
-                            }
-                          },
-                          child: const Text(
-                            "See Location",
-                            style: TextStyle(
-                              color: Colors.green,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
+                      ),
+                      child: const Text(
+                        "Rent Now",
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
                     ),
+                    const SizedBox(height: 20),
+                    Container(
+                      height: 250,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[200],
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: GoogleMap(
+                        initialCameraPosition: CameraPosition(
+                          target: LatLng(
+                            equipment.latitude ?? 32.55,
+                            equipment.longitude ?? 35.85,
+                          ),
+                          zoom: 14,
+                        ),
+                        markers: {
+                          Marker(
+                            markerId: const MarkerId("itemLocation"),
+                            position: LatLng(
+                              equipment.latitude ?? 32.55,
+                              equipment.longitude ?? 35.85,
+                            ),
+                            infoWindow: const InfoWindow(
+                                title: "Equipment Location"),
+                            icon:
+                                BitmapDescriptor.defaultMarkerWithHue(
+                              BitmapDescriptor.hueRed,
+                            ),
+                          ),
+                        },
+                        myLocationEnabled: false,
+                        zoomControlsEnabled: true,
+                        myLocationButtonEnabled: false,
+                      ),
+                    ),
+                    const SizedBox(height: 40),
                   ],
                 ),
               ),
@@ -508,8 +589,38 @@ class _EquipmentDetailPageState extends State<EquipmentDetailPage> {
       ),
     );
   }
-}
 
+  Widget _buildRentalTypeChip(String label, RentalType type, EquipmentItem equipment) {
+    bool isSelected = selectedRentalType == type;
+    return ChoiceChip(
+      label: Text("$label (JOD ${equipment.getPriceForRentalType(type).toStringAsFixed(2)})"),
+      selected: isSelected,
+      onSelected: (selected) {
+        setState(() {
+          selectedRentalType = type;
+        });
+      },
+      selectedColor: const Color(0xFF8A005D),
+      labelStyle: TextStyle(
+        color: isSelected ? Colors.white : Colors.black,
+      ),
+    );
+  }
+
+  // ignore: unused_element
+  String _getRentalTypeText(RentalType type) {
+    switch (type) {
+      case RentalType.hourly:
+        return 'hour';
+      case RentalType.weekly:
+        return 'week';
+      case RentalType.monthly:
+        return 'month';
+      case RentalType.yearly:
+        return 'year';
+    }
+  }
+}
 
 
 
