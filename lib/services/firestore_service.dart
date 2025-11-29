@@ -31,7 +31,6 @@ class FirestoreService {
 
     final data = await pendingRef.get();
     if (data.exists) {
-
       await pendingRef.update({
         "status": "approved",
         "reviewedAt": FieldValue.serverTimestamp(),
@@ -59,7 +58,10 @@ class FirestoreService {
     required String ownerId,
     required String name,
     required String description,
-    required double price,
+    required double pricePerHour,
+    required double pricePerWeek,
+    required double pricePerMonth,
+    required double pricePerYear,
     required String category,
     required List<String> imageUrls,
   }) async {
@@ -71,7 +73,10 @@ class FirestoreService {
       "ownerId": ownerId,
       "title": name,
       "description": description,
-      "price": price,
+      "pricePerHour": pricePerHour,
+      "pricePerWeek": pricePerWeek,
+      "pricePerMonth": pricePerMonth,
+      "pricePerYear": pricePerYear,
       "category": category,
       "imageUrls": imageUrls,
       "status": "pending",

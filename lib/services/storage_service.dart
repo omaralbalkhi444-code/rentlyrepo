@@ -14,4 +14,16 @@ class StorageService {
 
     return await ref.getDownloadURL();
   }
+
+  static Future<String> uploadItemImage(
+      String ownerId, File file, String fileName) async {
+    final ref = FirebaseStorage.instance
+        .ref()
+        .child("item_uploads")
+        .child(ownerId)
+        .child(fileName);
+
+    await ref.putFile(file);
+    return await ref.getDownloadURL();
+  }
 }

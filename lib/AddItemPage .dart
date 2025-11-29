@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:p2/services/firestore_service.dart';
+import 'package:p2/services/storage_service.dart';
 import 'EquipmentItem.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -22,7 +24,6 @@ class _AddItemPageState extends State<AddItemPage> {
 
   String? selectedCategory;
   List<File> pickedImages = [];
-  RentalType? selectedRentalType = RentalType.hourly;
 
   final List<String> categories = [
     "Electronics",
@@ -50,7 +51,7 @@ class _AddItemPageState extends State<AddItemPage> {
     });
   }
 
-  void addItem() {
+  Future<void> addItem() async {
     if (nameController.text.isEmpty ||
         descController.text.isEmpty ||
         selectedCategory == null ||
@@ -61,7 +62,6 @@ class _AddItemPageState extends State<AddItemPage> {
       return;
     }
 
-   
     if (pricePerHourController.text.isEmpty ||
         pricePerWeekController.text.isEmpty ||
         pricePerMonthController.text.isEmpty ||
@@ -72,19 +72,40 @@ class _AddItemPageState extends State<AddItemPage> {
       return;
     }
 
-    final newItem = {
-      "name": nameController.text,
-      "desc": descController.text,
-      "pricePerHour": double.parse(pricePerHourController.text),
-      "pricePerWeek": double.parse(pricePerWeekController.text),
-      "pricePerMonth": double.parse(pricePerMonthController.text),
-      "pricePerYear": double.parse(pricePerYearController.text),
-      "category": selectedCategory,
-      "rentalType": "Hourly",
-      "images": pickedImages.map((image) => image.path).toList(),
-    };
+    try {
+      final userId = "tempOwnerId"; // TODO: Replace with FirebaseAuth.instance.currentUser!.uid
 
-    Navigator.pop(context, newItem);
+      List<String> downloadUrls = [];
+      for (int i = 0; i < pickedImages.length; i++) {
+        String url = await StorageService.uploadItemImage(
+          userId,
+          pickedImages[i],
+          "item_$i.jpg",
+        );
+        downloadUrls.add(url);
+      }
+
+      await FirestoreService.submitItemForApproval(
+        ownerId: userId,
+        name: nameController.text.trim(),
+        description: descController.text.trim(),
+        pricePerHour: double.parse(pricePerHourController.text),
+        pricePerWeek: double.parse(pricePerWeekController.text),
+        pricePerMonth: double.parse(pricePerMonthController.text),
+        pricePerYear: double.parse(pricePerYearController.text),
+        category: selectedCategory!,
+        imageUrls: downloadUrls,
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Item submitted for approval")),
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error uploading item: $e")),
+      );
+    }
   }
 
   @override

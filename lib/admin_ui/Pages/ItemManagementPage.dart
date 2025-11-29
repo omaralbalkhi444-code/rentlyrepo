@@ -1,27 +1,14 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../services/firestore_service.dart';
 
 class ItemManagementPage extends StatelessWidget {
   const ItemManagementPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final additionRequests = [
-      {"name": "Item A", "description": "New item to add"},
-      {"name": "Item B", "description": "New item to add"},
-    ];
-
-    final editRequests = [
-      {"name": "Item C", "description": "Request to edit details"},
-      {"name": "Item D", "description": "Request to edit details"},
-    ];
-
-    final allItems = [
-      {"name": "Item A", "description": "Existing item"},
-      {"name": "Item B", "description": "Existing item"},
-      {"name": "Item C", "description": "Existing item"},
-    ];
-
     return DefaultTabController(
       length: 3,
       child: Scaffold(
@@ -43,9 +30,10 @@ class ItemManagementPage extends StatelessWidget {
                   Row(
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.arrow_back, color: Colors.white),
+                        icon: const Icon(
+                            Icons.arrow_back, color: Colors.white, size: 28),
                         onPressed: () {
-                          context.pop(); 
+                          context.go('/dashboard');
                         },
                       ),
                       const SizedBox(width: 8),
@@ -72,9 +60,9 @@ class ItemManagementPage extends StatelessWidget {
                       labelColor: Colors.white,
                       unselectedLabelColor: Colors.white70,
                       tabs: const [
-                        Tab(text: "Addition Requests"),
-                        Tab(text: "Edit Requests"),
-                        Tab(text: "All Items"),
+                        Tab(text: "Pending Items"),
+                        Tab(text: "Rejected Items"),
+                        Tab(text: "Approved Items"),
                       ],
                     ),
                   ),
@@ -84,9 +72,9 @@ class ItemManagementPage extends StatelessWidget {
             Expanded(
               child: TabBarView(
                 children: [
-                  _buildItemList(additionRequests, showApproveReject: true),
-                  _buildItemList(editRequests, showEdit: true),
-                  _buildItemList(allItems, showDelete: true),
+                  PendingItemsTab(),
+                  RejectedItemsTab(),
+                  ApprovedItemsTab(),
                 ],
               ),
             ),
@@ -95,56 +83,158 @@ class ItemManagementPage extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _buildItemList(
-    List<Map<String, String>> items, {
-    bool showApproveReject = false,
-    bool showEdit = false,
-    bool showDelete = false,
-  }) {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: items.length,
-      itemBuilder: (context, index) {
-        final item = items[index];
-        return Card(
-          margin: const EdgeInsets.symmetric(vertical: 8),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          elevation: 4,
-          child: ListTile(
-            title: Text(item['name'] ?? '',
-                style: const TextStyle(
-                    fontWeight: FontWeight.bold, fontSize: 16)),
-            subtitle: Text(item['description'] ?? ''),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (showApproveReject)
-                  IconButton(
-                    icon: const Icon(Icons.check, color: Colors.green),
-                    onPressed: () {},
-                  ),
-                if (showApproveReject)
-                  IconButton(
-                    icon: const Icon(Icons.close, color: Colors.red),
-                    onPressed: () {},
-                  ),
-                if (showEdit)
-                  IconButton(
-                    icon: const Icon(Icons.edit, color: Colors.orange),
-                    onPressed: () {},
-                  ),
-                if (showDelete)
-                  IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    onPressed: () {},
-                  ),
-              ],
-            ),
-          ),
+class PendingItemsTab extends StatelessWidget {
+  const PendingItemsTab({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection("pending_items")
+          .where("status", isEqualTo: "pending")
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData)
+          return const Center(child: CircularProgressIndicator());
+        final items = snapshot.data!.docs;
+
+        if (items.isEmpty) return const Center(child: Text("No pending items"));
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: items.length,
+          itemBuilder: (context, index) {
+            final doc = items[index];
+            final data = doc.data() as Map<String, dynamic>;
+
+            return Card(
+              margin: const EdgeInsets.symmetric(vertical: 8),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              elevation: 4,
+              child: ListTile(
+                title: Text(
+                  data["title"] ?? "",
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                subtitle: Text(data["description"] ?? ""),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.check, color: Colors.green),
+                      onPressed: () => FirestoreService.approveItem(doc.id),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.red),
+                      onPressed: () => FirestoreService.rejectItem(doc.id),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
         );
       },
     );
   }
 }
+
+class RejectedItemsTab extends StatelessWidget {
+  const RejectedItemsTab({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection("pending_items")
+          .where("status", isEqualTo: "rejected")
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        final items = snapshot.data!.docs;
+
+        if (items.isEmpty) return const Center(child: Text("No rejected items"));
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: items.length,
+          itemBuilder: (context, index) {
+            final doc = items[index];
+            final data = doc.data() as Map<String, dynamic>;
+
+            return Card(
+              margin: const EdgeInsets.symmetric(vertical: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              elevation: 4,
+              child: ListTile(
+                title: Text(
+                  data["title"] ?? "",
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                subtitle: Text(data["description"] ?? ""),
+                trailing: const Icon(Icons.block, color: Colors.red),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class ApprovedItemsTab extends StatelessWidget {
+  const ApprovedItemsTab({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection("items")
+          .where("status", isEqualTo: "approved")
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        final items = snapshot.data!.docs;
+
+        if (items.isEmpty) return const Center(child: Text("No approved items"));
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: items.length,
+          itemBuilder: (context, index) {
+            final doc = items[index];
+            final data = doc.data() as Map<String, dynamic>;
+
+            return Card(
+              margin: const EdgeInsets.symmetric(vertical: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              elevation: 4,
+              child: ListTile(
+                title: Text(
+                  data["title"] ?? "",
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                subtitle: Text(data["description"] ?? ""),
+                trailing: IconButton(
+                  icon: const Icon(Icons.delete, color: Colors.red),
+                  onPressed: () {
+                    FirebaseFirestore.instance
+                        .collection("items")
+                        .doc(doc.id)
+                        .delete();
+                  },
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
 
