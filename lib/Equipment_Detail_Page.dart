@@ -1,5 +1,4 @@
 
-
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
@@ -69,6 +68,18 @@ class _EquipmentDetailPageState extends State<EquipmentDetailPage> {
     return basePrice;
   }
 
+  void _navigateToChat(BuildContext context, EquipmentItem equipment) {
+   
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('The conversation with the owner will be opened${equipment.title}'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+    
+   
+  }
+
   @override
   Widget build(BuildContext context) {
     final equipment =
@@ -93,6 +104,7 @@ class _EquipmentDetailPageState extends State<EquipmentDetailPage> {
         child: SingleChildScrollView(
           child: Column(
             children: [
+            
               Container(
                 height: 280,
                 margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -193,21 +205,43 @@ class _EquipmentDetailPageState extends State<EquipmentDetailPage> {
                   ],
                 ),
               ),
+
+             
               Padding(
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      equipment.title,
-                      style: const TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87),
-                    ),
-                    const SizedBox(height: 10),
+                  
                     Row(
                       children: [
+                        Expanded(
+                          child: Text(
+                            equipment.title,
+                            style: const TextStyle(
+                              fontSize: 26,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => _navigateToChat(context, equipment),
+                          icon: const Icon(
+                            Icons.help_outline,
+                            color: Color(0xFF8A005D),
+                            size: 28,
+                          ),
+                          tooltip: 'Ask the owner',
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+
+               
+                    Row(
+                      children: [
+                      
                         GestureDetector(
                           onTap: () {
                             showDialog(
@@ -326,6 +360,8 @@ class _EquipmentDetailPageState extends State<EquipmentDetailPage> {
                           ),
                         ),
                         const SizedBox(width: 20),
+
+                      
                         GestureDetector(
                           onTap: () {
                             setState(() {
@@ -333,19 +369,24 @@ class _EquipmentDetailPageState extends State<EquipmentDetailPage> {
                               likesCount = isLiked ? 1 : 0;
                             });
                           },
-                          child: Icon(
-                            Icons.thumb_up,
-                            color: isLiked ? Colors.green : Colors.grey,
-                            size: 22,
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.thumb_up,
+                                color: isLiked ? Colors.green : Colors.grey,
+                                size: 22,
+                              ),
+                              const SizedBox(width: 4),
+                              Text("$likesCount",
+                                  style: const TextStyle(fontSize: 14)),
+                            ],
                           ),
                         ),
-                        const SizedBox(width: 4),
-                        Text("$likesCount",
-                            style: const TextStyle(fontSize: 14)),
                       ],
                     ),
                     const SizedBox(height: 14),
                     
+                  
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -384,14 +425,19 @@ class _EquipmentDetailPageState extends State<EquipmentDetailPage> {
                     ),
                     
                     const SizedBox(height: 14),
+                    
+                 
                     Text(equipment.description,
                         style: const TextStyle(
                             fontSize: 14, color: Colors.black54)),
                     const SizedBox(height: 14),
+                    
+                 
                     Text("Release Year: ${equipment.releaseYear}",
                         style: const TextStyle(
                             fontSize: 14, color: Colors.black87)),
                     const SizedBox(height: 14),
+                   
                     const Text("Specifications:",
                         style: TextStyle(
                             fontSize: 16, fontWeight: FontWeight.bold)),
@@ -400,24 +446,38 @@ class _EquipmentDetailPageState extends State<EquipmentDetailPage> {
                           Text("• $spec", style: const TextStyle(fontSize: 14)),
                     ),
                     const SizedBox(height: 20),
+
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        ElevatedButton(
-                          onPressed: () => _selectDate(context, true),
-                          child: Text(startDate == null
-                              ? "Start Date"
-                              : DateFormat('yyyy-MM-dd').format(startDate!)),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () => _selectDate(context, true),
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            child: Text(startDate == null
+                                ? "Start Date"
+                                : DateFormat('yyyy-MM-dd').format(startDate!)),
+                          ),
                         ),
-                        ElevatedButton(
-                          onPressed: () => _selectDate(context, false),
-                          child: Text(endDate == null
-                              ? "End Date"
-                              : DateFormat('yyyy-MM-dd').format(endDate!)),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () => _selectDate(context, false),
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            child: Text(endDate == null
+                                ? "End Date"
+                                : DateFormat('yyyy-MM-dd').format(endDate!)),
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 12),
+                    
+                   
                     ElevatedButton(
                       onPressed: () async {
                         final TimeOfDay? picked = await showTimePicker(
@@ -430,11 +490,15 @@ class _EquipmentDetailPageState extends State<EquipmentDetailPage> {
                           });
                         }
                       },
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 48),
+                      ),
                       child: Text(pickupTime == null
                           ? "Select Pickup Time"
                           : pickupTime!),
                     ),
                     const SizedBox(height: 20),
+
                     ElevatedButton(
                       onPressed: () {
                         TextEditingController c = TextEditingController();
@@ -478,9 +542,14 @@ class _EquipmentDetailPageState extends State<EquipmentDetailPage> {
                           },
                         );
                       },
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 48),
+                      ),
                       child: const Text("Write Review"),
                     ),
                     const SizedBox(height: 10),
+                    
+                    
                     if (equipment.userReviews.isNotEmpty)
                       TextButton(
                         onPressed: () {
@@ -511,9 +580,11 @@ class _EquipmentDetailPageState extends State<EquipmentDetailPage> {
                             },
                           );
                         },
-                        child: const Text("See All"),
+                        child: const Text("See All Reviews"),
                       ),
                     const SizedBox(height: 20),
+
+                  
                     ElevatedButton(
                       onPressed: () {
                         OrdersManager.addOrder(equipment);
@@ -531,8 +602,7 @@ class _EquipmentDetailPageState extends State<EquipmentDetailPage> {
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF8A005D),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 30, vertical: 14),
+                        minimumSize: const Size(double.infinity, 54),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(30),
                         ),
@@ -540,15 +610,20 @@ class _EquipmentDetailPageState extends State<EquipmentDetailPage> {
                       child: const Text(
                         "Rent Now",
                         style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold),
+                            fontSize: 18, 
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white),
                       ),
                     ),
                     const SizedBox(height: 20),
+
+                  
                     Container(
-                      height: 250,
+                      height: 100,
                       decoration: BoxDecoration(
                         color: Colors.grey[200],
                         borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.grey[300]!),
                       ),
                       clipBehavior: Clip.antiAlias,
                       child: GoogleMap(
@@ -621,6 +696,5 @@ class _EquipmentDetailPageState extends State<EquipmentDetailPage> {
     }
   }
 }
-
 
 
