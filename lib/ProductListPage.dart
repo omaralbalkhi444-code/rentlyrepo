@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'Fake data.dart';
-import 'EquipmentItem.dart' hide DUMMY_EQUIPMENT;
+import 'EquipmentItem.dart';
 import 'Equipment_Detail_Page.dart';
 
 class ProductListPage extends StatefulWidget {
@@ -287,6 +287,8 @@ class ProductCard extends StatelessWidget {
     switch (type) {
       case RentalType.hourly:
         return 'hour';
+        case RentalType.daily:
+        return 'day';
       case RentalType.weekly:
         return 'week';
       case RentalType.monthly:
