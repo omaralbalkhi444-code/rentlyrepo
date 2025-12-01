@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'withdraw_page.dart';
+import 'package:p2/Last%20Activity.dart';
+
 
 class CardPaymentPage extends StatefulWidget {
   const CardPaymentPage({super.key});
@@ -62,9 +63,10 @@ class _CardPaymentPageState extends State<CardPaymentPage> {
       const SnackBar(content: Text("Payment processed successfully")),
     );
 
-    Navigator.push(
+    
+    Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => const WithdrawPage()),
+      MaterialPageRoute(builder: (context) => const WalletPage()),
     );
   }
 
@@ -292,7 +294,6 @@ class _CardPaymentPageState extends State<CardPaymentPage> {
     );
   }
 }
-
 
 
 
