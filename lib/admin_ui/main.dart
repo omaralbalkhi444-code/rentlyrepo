@@ -4,17 +4,16 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:p2/admin_ui/routes.dart';
 import '../firebase_options.dart';
 
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
 
   if (kIsWeb) {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
     runApp(const AdminApp());
   } else {
-    
+  
     runApp(Container(color: Colors.white));
   }
 }
@@ -30,4 +29,3 @@ class AdminApp extends StatelessWidget {
     );
   }
 }
-
