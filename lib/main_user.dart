@@ -1,4 +1,4 @@
-// ignore_for_file: unused_import
+
 
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -42,9 +42,7 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  await FirebaseAppCheck.instance.activate(
-    androidProvider: AndroidProvider.playIntegrity,
-  );
+  
   runApp(const MyApp());
 }
 
@@ -103,6 +101,7 @@ class MyApp extends StatelessWidget {
 
           
             if (settings.name == EquipmentDetailPage.routeName) {
+              
               final equipment = settings.arguments as EquipmentItem?;
               return MaterialPageRoute(
                 builder: (context) => EquipmentDetailPage(),
