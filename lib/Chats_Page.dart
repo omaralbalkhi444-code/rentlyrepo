@@ -1,3 +1,4 @@
+
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'ChatScreen.dart';
@@ -16,7 +17,7 @@ class ChatsPage extends StatefulWidget {
 class _ChatsPageState extends State<ChatsPage> {
   int selectedBottom = 3;
 
-  // TIME FORMAT
+  // TIME FORMAT 
   String formatTime(int timestamp) {
     final date = DateTime.fromMillisecondsSinceEpoch(timestamp);
 
@@ -49,7 +50,6 @@ class _ChatsPageState extends State<ChatsPage> {
     );
   }
 
- 
   Widget _header() {
     return Container(
       width: double.infinity,
@@ -74,7 +74,7 @@ class _ChatsPageState extends State<ChatsPage> {
     );
   }
 
- -
+
   Widget _searchBar() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -115,8 +115,8 @@ class _ChatsPageState extends State<ChatsPage> {
             "name": userData["name"],
           };
         }).toList();
-
         
+
         users = users.where((u) => u["id"] != LoginUID.uid).toList();
 
         return ListView.builder(
@@ -173,7 +173,7 @@ class _ChatsPageState extends State<ChatsPage> {
                     ),
                     child: Row(
                       children: [
-                        // AVATAR
+                        
                         const CircleAvatar(
                           radius: 26,
                           backgroundColor: Colors.grey,
@@ -187,7 +187,7 @@ class _ChatsPageState extends State<ChatsPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // 
+                              // NAME
                               Text(
                                 user["name"],
                                 style: const TextStyle(
@@ -199,7 +199,7 @@ class _ChatsPageState extends State<ChatsPage> {
 
                               const SizedBox(height: 6),
 
-                              // LAST MESSAGE + TIME 
+                              // LAST MESSAGE , TIME 
                               Row(
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
@@ -219,7 +219,7 @@ class _ChatsPageState extends State<ChatsPage> {
 
                                   const SizedBox(width: 8),
 
-                                 
+                                  
                                   Text(
                                     lastTime,
                                     style: TextStyle(
@@ -244,8 +244,7 @@ class _ChatsPageState extends State<ChatsPage> {
     );
   }
 
- 
-  Widget _bottomNav() {
+    Widget _bottomNav() {
     return Container(
       height: 70,
       decoration: const BoxDecoration(
