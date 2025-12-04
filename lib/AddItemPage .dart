@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:p2/services/firestore_service.dart';
 import 'package:p2/services/storage_service.dart';
@@ -73,19 +75,24 @@ class _AddItemPageState extends State<AddItemPage> {
     }
 
     try {
-      const userId = "tempOwnerId"; 
+      final ownerId = FirebaseAuth.instance.currentUser!.uid;
+
+      final itemRef = FirebaseFirestore.instance.collection("items").doc();
+      final String itemId = itemRef.id;
+
       List<String> downloadUrls = [];
       for (int i = 0; i < pickedImages.length; i++) {
         String url = await StorageService.uploadItemImage(
-          userId,
+          ownerId,
+          itemId,
           pickedImages[i],
-          "item_$i.jpg",
+          "photo_$i.jpg",
         );
         downloadUrls.add(url);
       }
 
       await FirestoreService.submitItemForApproval(
-        ownerId: userId,
+        ownerId: ownerId,
         name: nameController.text.trim(),
         description: descController.text.trim(),
         pricePerHour: double.parse(pricePerHourController.text),

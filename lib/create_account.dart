@@ -18,7 +18,7 @@ class MockAuth {
   final Set<String> _registeredEmails = {'test@example.com'};
 
   Future<String?> signUpWithEmail(String email, String password) async {
-    await Future.delayed(const Duration(milliseconds: 700)); 
+    await Future.delayed(const Duration(milliseconds: 700));
 
     final e = email.trim();
 
@@ -33,9 +33,9 @@ class MockAuth {
       return ' This email address has been used before.';
     }
 
-  
+
     _registeredEmails.add(e);
-    return null; 
+    return null;
   }
 }
 
@@ -249,19 +249,19 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                                   onPressed: isLoading ? null : _onContinue,
                                   child: isLoading
                                       ? const SizedBox(
-                                          height: 18,
-                                          width: 18,
-                                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                                        )
+                                    height: 18,
+                                    width: 18,
+                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                  )
                                       : Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Text(AppLocale.t('continue'),
-                                                style: const TextStyle(color: Colors.white)),
-                                            const SizedBox(width: 8),
-                                            const Icon(Icons.arrow_forward, color: Colors.white),
-                                          ],
-                                        ),
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(AppLocale.t('continue'),
+                                          style: const TextStyle(color: Colors.white)),
+                                      const SizedBox(width: 8),
+                                      const Icon(Icons.arrow_forward, color: Colors.white),
+                                    ],
+                                  ),
                                 ),
                               ],
                             ),

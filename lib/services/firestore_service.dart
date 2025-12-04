@@ -1,29 +1,20 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 class FirestoreService {
 
-  static Future<void> submitUserForApproval({
-    required String uid,
-    required String email,
-    required String firstName,
-    required String lastName,
-    required String phone,
-    required String idPhotoUrl,
-    required String selfiePhotoUrl,
-    required String birthDate,
-  }) async {
-    await FirebaseFirestore.instance.collection("pending_users").doc(uid).set({
-      "email": email,
-      "firstName": firstName,
-      "lastName": lastName,
-      "phone": phone,
-      "idPhotoUrl": idPhotoUrl,
-      "selfieFaceUrl": selfiePhotoUrl,
-      "birthDate": birthDate,
-      "submittedAt": FieldValue.serverTimestamp(),
-      "status": "pending",
-    });
+  static final functions =
+  FirebaseFunctions.instanceFor(region: "us-central1");
+
+  static Future<void> submitUserForApproval(Map<String, dynamic> data) async {
+    final callable = FirebaseFunctions.instance
+        .httpsCallableFromUrl(
+        "https://us-central1-p22rently.cloudfunctions.net/submitUserForApproval"
+    );
+
+    await callable.call(data);
   }
+
 
   Future<void> approveUser(String uid) async {
     final pendingRef = FirebaseFirestore.instance.collection("pending_users").doc(uid);

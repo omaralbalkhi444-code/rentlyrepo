@@ -2,11 +2,11 @@ import 'dart:io';
 import 'package:firebase_storage/firebase_storage.dart';
 
 class StorageService {
-  static Future<String> uploadUserImage(
+  static Future<String> uploadVerificationImage(
       String uid, File file, String fileName) async {
+
     final ref = FirebaseStorage.instance
-        .ref()
-        .child("user_uploads")
+        .ref("identity_docs")
         .child(uid)
         .child(fileName);
 
@@ -16,14 +16,20 @@ class StorageService {
   }
 
   static Future<String> uploadItemImage(
-      String ownerId, File file, String fileName) async {
+      String ownerId, String itemId, File file, String fileName) async {
+
     final ref = FirebaseStorage.instance
-        .ref()
-        .child("item_uploads")
-        .child(ownerId)
+        .ref("rental_items")
+        .child(itemId)
         .child(fileName);
 
-    await ref.putFile(file);
+    await ref.putFile(
+      file,
+      SettableMetadata(
+        customMetadata: {"ownerUid": ownerId},
+      ),
+    );
+
     return await ref.getDownloadURL();
   }
 }

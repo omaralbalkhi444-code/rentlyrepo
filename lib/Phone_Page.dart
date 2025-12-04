@@ -42,7 +42,7 @@ class _PhonePageState extends State<PhonePage> {
   }
 
   Future pickFace() async {
-    final img = await ImagePicker().pickImage(source: ImageSource.camera);
+    final img = await ImagePicker().pickImage(source: ImageSource.gallery);
     if (img != null) {
       setState(() {
         faceImage = File(img.path);
@@ -52,57 +52,62 @@ class _PhonePageState extends State<PhonePage> {
   }
 
   void validateAndContinue() async {
+    if (firstNameController.text.trim().isEmpty
+        || lastNameController.text.trim().isEmpty
+        || birthDateController.text.trim().isEmpty
+        || phoneController.text.trim().isEmpty) {
+      showMsg("Please fill all required fields.");
+      return;
+    }
+
+    if (idImage == null) {
+      showMsg("Please upload your ID photo");
+      return;
+    }
+
+    if (faceImage == null || faceDetected == false) {
+      showMsg("Please complete a valid face scan");
+      return;
+    }
+
     try {
+      showMsg("Uploading images...");
 
-      if (firstNameController.text.trim().isEmpty ||
-          lastNameController.text.trim().isEmpty ||
-          birthDateController.text.trim().isEmpty ||
-          phoneController.text.trim().isEmpty) {
-        showMsg("Please fill all required fields.");
-        return;
-      }
-
-      if (idImage == null) {
-        showMsg("Please upload your ID photo");
-        return;
-      }
-
-      if (faceImage == null || faceDetected == false) {
-        showMsg("Please complete a valid face scan");
-        return;
-      }
-
-      String idUrl = await StorageService.uploadUserImage(
+      String idUrl = await StorageService.uploadVerificationImage(
         widget.uid,
         idImage!,
         "idPhoto.jpg",
       );
 
-      String selfieUrl = await StorageService.uploadUserImage(
+      String selfieUrl = await StorageService.uploadVerificationImage(
         widget.uid,
         faceImage!,
         "selfie.jpg",
       );
 
-      await FirestoreService.submitUserForApproval(
-        uid: widget.uid,
-        email: widget.email,
-        firstName: firstNameController.text.trim(),
-        lastName: lastNameController.text.trim(),
-        birthDate: birthDateController.text.trim(),
-        phone: phoneController.text.trim(),
-        idPhotoUrl: idUrl,
-        selfiePhotoUrl: selfieUrl,
-      );
+      showMsg("Submitting for approval...");
+
+      await FirestoreService.submitUserForApproval({
+        "firstName": firstNameController.text.trim(),
+        "lastName": lastNameController.text.trim(),
+        "phone": phoneController.text.trim(),
+        "birthDate": birthDateController.text.trim(),
+        "idPhotoUrl": idUrl,
+        "selfiePhotoUrl": selfieUrl,
+      });
+
+      showMsg("Successfully submitted! Await approval.");
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("You are submitted for approval")),
       );
-
     } catch (e) {
-      print("Error submitting user: $e");
+      print("Error: $e");
+      showMsg("Something went wrong, try again.");
     }
-    /*String phone = phoneController.text.trim();
+  }
+
+  /*String phone = phoneController.text.trim();
 
     if (phone.isEmpty) {
       showMsg("Please enter your phone number");
@@ -118,8 +123,6 @@ class _PhonePageState extends State<PhonePage> {
         "faceImage": faceImage,
       },
     );*/
-
-  }
 
   void showMsg(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
