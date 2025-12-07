@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class FirestoreService {
 
@@ -15,93 +16,46 @@ class FirestoreService {
     await callable.call(data);
   }
 
-
-  Future<void> approveUser(String uid) async {
-    final pendingRef = FirebaseFirestore.instance.collection("pending_users").doc(uid);
-    final usersRef = FirebaseFirestore.instance.collection("users").doc(uid);
-
-    final data = await pendingRef.get();
-    if (data.exists) {
-      await pendingRef.update({
-        "status": "approved",
-        "reviewedAt": FieldValue.serverTimestamp(),
-      });
-
-      await usersRef.set({
-        "email": data["email"],
-        "firstName": data["firstName"],
-        "lastName": data["lastName"],
-        "phone": data["phone"],
-        "birthDate": data["birthDate"],
-        "approvedAt": FieldValue.serverTimestamp(),
-      });
-    }
+  static Future<void> submitItemForApproval(Map<String, dynamic> data) async {
+    await FirebaseFunctions.instance
+        .httpsCallable("submitItemForApproval")
+        .call(data);
   }
 
-  Future<void> rejectUser(String uid) async {
-    await FirebaseFirestore.instance.collection("pending_users").doc(uid).update({
-      "status": "rejected",
-      "reviewedAt": FieldValue.serverTimestamp(),
-    });
-  }
-
-  static Future<void> submitItemForApproval({
-    required String ownerId,
-    required String name,
-    required String description,
-    required double pricePerHour,
-    required double pricePerWeek,
-    required double pricePerMonth,
-    required double pricePerYear,
-    required String category,
-    required List<String> imageUrls,
+  static Future<void> createRentalRequest({
+    required String itemId,
+    required String itemTitle,
+    required String itemOwnerUid,
+    required String rentalType,
+    required String startDate,
+    required String endDate,
+    String? startTime,
+    String? endTime,
+    required String pickupTime,
+    required double totalPrice,
   }) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
 
-    final docRef = FirebaseFirestore.instance.collection("pending_items").doc();
+    if (uid == null) {
+      throw Exception("User not logged in.");
+    }
 
-    await docRef.set({
-      "itemId": docRef.id,
-      "ownerId": ownerId,
-      "title": name,
-      "description": description,
-      "pricePerHour": pricePerHour,
-      "pricePerWeek": pricePerWeek,
-      "pricePerMonth": pricePerMonth,
-      "pricePerYear": pricePerYear,
-      "category": category,
-      "imageUrls": imageUrls,
+    await FirebaseFirestore.instance.collection("rentalRequests").add({
+      "itemId": itemId,
+      "itemTitle": itemTitle,
+      "itemOwnerUid": itemOwnerUid,
+      "customerUid": uid,
+
+      "rentalType": rentalType,
+      "startDate": startDate,
+      "endDate": endDate,
+      "startTime": startTime,
+      "endTime": endTime,
+      "pickupTime": pickupTime,
+      "totalPrice": totalPrice.toStringAsFixed(2),
+
       "status": "pending",
-      "submittedAt": FieldValue.serverTimestamp(),
+      "createdAt": FieldValue.serverTimestamp(),
     });
   }
-
-  static Future<void> approveItem(String itemId) async {
-    final pendingRef = FirebaseFirestore.instance.collection("pending_items").doc(itemId);
-    final itemsRef = FirebaseFirestore.instance.collection("items").doc(itemId);
-
-    final doc = await pendingRef.get();
-    if (!doc.exists) return;
-
-    final data = doc.data()!;
-
-    await itemsRef.set({
-      ...data,
-      "status": "approved",
-      "approvedAt": FieldValue.serverTimestamp(),
-    });
-
-    await pendingRef.update({
-      "status": "approved",
-      "reviewedAt": FieldValue.serverTimestamp(),
-    });
-  }
-
-  static Future<void> rejectItem(String itemId) async {
-    await FirebaseFirestore.instance.collection("pending_items")
-        .doc(itemId).update({
-      "status": "rejected",
-      "reviewedAt": FieldValue.serverTimestamp(),
-    });
-  }
-
 }

@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -126,11 +127,27 @@ class PendingItemsTab extends StatelessWidget {
                   children: [
                     IconButton(
                       icon: const Icon(Icons.check, color: Colors.green),
-                      onPressed: () => FirestoreService.approveItem(doc.id),
+                      onPressed: () async {
+                        await FirebaseFunctions.instance
+                            .httpsCallable("approveItem")
+                            .call({"itemId": doc.id});
+
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("Item Approved")),
+                        );
+                      },
                     ),
                     IconButton(
                       icon: const Icon(Icons.close, color: Colors.red),
-                      onPressed: () => FirestoreService.rejectItem(doc.id),
+                      onPressed: () async {
+                        await FirebaseFunctions.instance
+                            .httpsCallable("rejectItem")
+                            .call({"itemId": doc.id});
+
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("Item Rejected")),
+                        );
+                      },
                     ),
                   ],
                 ),

@@ -39,7 +39,7 @@ class _AddItemPageState extends State<AddItemPage> {
 
   Future pickImages() async {
     final List<XFile>? pickedFiles = await ImagePicker().pickMultiImage();
-    
+
     if (pickedFiles != null) {
       setState(() {
         pickedImages.addAll(pickedFiles.map((file) => File(file.path)).toList());
@@ -77,7 +77,7 @@ class _AddItemPageState extends State<AddItemPage> {
     try {
       final ownerId = FirebaseAuth.instance.currentUser!.uid;
 
-      final itemRef = FirebaseFirestore.instance.collection("items").doc();
+      final itemRef = FirebaseFirestore.instance.collection("pending_items").doc();
       final String itemId = itemRef.id;
 
       List<String> downloadUrls = [];
@@ -91,22 +91,25 @@ class _AddItemPageState extends State<AddItemPage> {
         downloadUrls.add(url);
       }
 
-      await FirestoreService.submitItemForApproval(
-        ownerId: ownerId,
-        name: nameController.text.trim(),
-        description: descController.text.trim(),
-        pricePerHour: double.parse(pricePerHourController.text),
-        pricePerWeek: double.parse(pricePerWeekController.text),
-        pricePerMonth: double.parse(pricePerMonthController.text),
-        pricePerYear: double.parse(pricePerYearController.text),
-        category: selectedCategory!,
-        imageUrls: downloadUrls,
-      );
+      await FirebaseFirestore.instance.collection("pending_items").doc(itemId).set({
+        "itemId": itemId,
+        "ownerId": ownerId,
+        "name": nameController.text.trim(),
+        "description": descController.text.trim(),
+        "category": selectedCategory,
+        "images": downloadUrls,
+        "pricePerHour": double.parse(pricePerHourController.text),
+        "pricePerWeek": double.parse(pricePerWeekController.text),
+        "pricePerMonth": double.parse(pricePerMonthController.text),
+        "pricePerYear": double.parse(pricePerYearController.text),
+        "createdAt": FieldValue.serverTimestamp(),
+        "status": "pending",
+      });
 
-      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Item submitted for approval")),
       );
+
       Navigator.pop(context);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -124,7 +127,7 @@ class _AddItemPageState extends State<AddItemPage> {
     return Scaffold(
       body: Column(
         children: [
-        
+
           ClipPath(
             clipper: SideCurveClipper(),
             child: Container(
@@ -161,12 +164,12 @@ class _AddItemPageState extends State<AddItemPage> {
                       color: Colors.white,
                     ),
                   ),
-                  const SizedBox(width: 40), 
+                  const SizedBox(width: 40),
                 ],
               ),
             ),
           ),
-          
+
           Expanded(
             child: Container(
               width: double.infinity,
@@ -189,7 +192,7 @@ class _AddItemPageState extends State<AddItemPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                
+
                     Card(
                       elevation: 3,
                       shape: RoundedRectangleBorder(
@@ -237,7 +240,7 @@ class _AddItemPageState extends State<AddItemPage> {
                                       size: 40,
                                       color: Color(0xFF8A005D).withOpacity(0.7),
                                     ),
-                                   const SizedBox(height: 8),
+                                    const SizedBox(height: 8),
                                     const Text(
                                       "Tap to add images",
                                       style: TextStyle(
@@ -259,7 +262,7 @@ class _AddItemPageState extends State<AddItemPage> {
                               ),
                             ),
                             if (pickedImages.isNotEmpty) ...[
-                             const SizedBox(height: 16),
+                              const SizedBox(height: 16),
                               SizedBox(
                                 height: 110,
                                 child: ListView.builder(
@@ -312,10 +315,10 @@ class _AddItemPageState extends State<AddItemPage> {
                         ),
                       ),
                     ),
-                    
+
                     const SizedBox(height: 20),
-                    
-                    
+
+
                     Card(
                       elevation: 3,
                       shape: RoundedRectangleBorder(
@@ -340,8 +343,8 @@ class _AddItemPageState extends State<AddItemPage> {
                                 ),
                               ],
                             ),
-                           const SizedBox(height: 16),
-                            
+                            const SizedBox(height: 16),
+
                             TextField(
                               controller: nameController,
                               decoration: InputDecoration(
@@ -358,8 +361,8 @@ class _AddItemPageState extends State<AddItemPage> {
                                 prefixIcon:const Icon(Icons.photo_camera_back, color: Color(0xFF8A005D)),
                               ),
                             ),
-                           const SizedBox(height: 15),
-                            
+                            const SizedBox(height: 15),
+
                             TextField(
                               controller: descController,
                               maxLines: 3,
@@ -377,8 +380,8 @@ class _AddItemPageState extends State<AddItemPage> {
                                 prefixIcon:const Icon(Icons.description, color: Color(0xFF8A005D)),
                               ),
                             ),
-                           const SizedBox(height: 15),
-                            
+                            const SizedBox(height: 15),
+
                             DropdownButtonFormField<String>(
                               decoration: InputDecoration(
                                 labelText: "Category",
@@ -396,9 +399,9 @@ class _AddItemPageState extends State<AddItemPage> {
                               initialValue: selectedCategory,
                               items: categories
                                   .map((cat) => DropdownMenuItem(
-                                        value: cat,
-                                        child: Text(cat, style: const TextStyle(fontSize: 16)),
-                                      ))
+                                value: cat,
+                                child: Text(cat, style: const TextStyle(fontSize: 16)),
+                              ))
                                   .toList(),
                               onChanged: (value) {
                                 setState(() {
@@ -410,10 +413,10 @@ class _AddItemPageState extends State<AddItemPage> {
                         ),
                       ),
                     ),
-                    
-                   const SizedBox(height: 20),
-                    
-                  
+
+                    const SizedBox(height: 20),
+
+
                     Card(
                       elevation: 3,
                       shape: RoundedRectangleBorder(
@@ -438,8 +441,8 @@ class _AddItemPageState extends State<AddItemPage> {
                                 ),
                               ],
                             ),
-                           const SizedBox(height: 16),
-                            
+                            const SizedBox(height: 16),
+
                             GridView.count(
                               crossAxisCount: 2,
                               childAspectRatio: 3,
@@ -458,10 +461,10 @@ class _AddItemPageState extends State<AddItemPage> {
                         ),
                       ),
                     ),
-                    
-                   const SizedBox(height: 30),
-                    
-              
+
+                    const SizedBox(height: 30),
+
+
                     Container(
                       width: double.infinity,
                       height: 55,
@@ -499,7 +502,7 @@ class _AddItemPageState extends State<AddItemPage> {
                               color: Colors.white,
                               size: 24,
                             ),
-                         const SizedBox(width: 10),
+                            const SizedBox(width: 10),
                             Text(
                               widget.item == null ? "Add Item" : "Update Item",
                               style: const TextStyle(
@@ -512,7 +515,7 @@ class _AddItemPageState extends State<AddItemPage> {
                         ),
                       ),
                     ),
-                    
+
                     const SizedBox(height: 20),
                   ],
                 ),
