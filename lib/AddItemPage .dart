@@ -2,10 +2,10 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:p2/services/firestore_service.dart';
-import 'package:p2/services/storage_service.dart';
-import 'EquipmentItem.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:p2/Categories_Page.dart';
+import 'EquipmentItem.dart';
+import 'package:p2/services/storage_service.dart';
 
 class AddItemPage extends StatefulWidget {
   const AddItemPage({super.key, this.item});
@@ -13,17 +13,21 @@ class AddItemPage extends StatefulWidget {
   final EquipmentItem? item;
 
   @override
+  // ignore: library_private_types_in_public_api
   _AddItemPageState createState() => _AddItemPageState();
 }
 
 class _AddItemPageState extends State<AddItemPage> {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController descController = TextEditingController();
-  final TextEditingController pricePerHourController = TextEditingController();
-  final TextEditingController pricePerWeekController = TextEditingController();
-  final TextEditingController pricePerMonthController = TextEditingController();
-  final TextEditingController pricePerYearController = TextEditingController();
-
+  
+  
+  final Map<String, String> selectedRentalPeriods = {};
+  
+  
+  String? newRentalPeriod;
+  final TextEditingController priceController = TextEditingController();
+  
   String? selectedCategory;
   List<File> pickedImages = [];
 
@@ -37,12 +41,44 @@ class _AddItemPageState extends State<AddItemPage> {
     "Others"
   ];
 
-  Future pickImages() async {
-    final List<XFile>? pickedFiles = await ImagePicker().pickMultiImage();
+  
+  final List<String> availableRentalPeriods = [
+    'Hour',
+    'Day',
+    'Week',
+    'Month',
+    'Year',
+  ];
+
+  Future<void> pickImages() async {
+    final List<XFile>? pickedFiles = await ImagePicker().pickMultiImage(
+      maxWidth: 1200,
+      maxHeight: 1200,
+      imageQuality: 85,
+    );
 
     if (pickedFiles != null) {
       setState(() {
-        pickedImages.addAll(pickedFiles.map((file) => File(file.path)).toList());
+  
+        int remainingSlots = 5 - pickedImages.length;
+        if (remainingSlots > 0) {
+          int imagesToAdd = pickedFiles.length > remainingSlots 
+              ? remainingSlots 
+              : pickedFiles.length;
+          
+          pickedImages.addAll(
+            pickedFiles.take(imagesToAdd).map((file) => File(file.path)).toList()
+          );
+        }
+        
+        if (pickedFiles.length > remainingSlots) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Maximum 5 images allowed. Added $remainingSlots images.'),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
       });
     }
   }
@@ -53,33 +89,73 @@ class _AddItemPageState extends State<AddItemPage> {
     });
   }
 
-  Future<void> addItem() async {
-    if (nameController.text.isEmpty ||
-        descController.text.isEmpty ||
-        selectedCategory == null ||
-        pickedImages.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please fill all required fields")),
-      );
+  void removeRentalPeriod(String period) {
+    setState(() {
+      selectedRentalPeriods.remove(period);
+    });
+  }
+
+  void addNewRentalPeriod() {
+    if (newRentalPeriod == null || priceController.text.isEmpty) {
+      showErrorSnackBar('Please select a period and enter price');
       return;
     }
+    
+    final price = double.tryParse(priceController.text);
+    if (price == null || price <= 0) {
+      showErrorSnackBar('Please enter a valid price');
+      return;
+    }
+    
+    
+    if (selectedRentalPeriods.containsKey(newRentalPeriod)) {
+      showErrorSnackBar('$newRentalPeriod is already added');
+      return;
+    }
+    
+    setState(() {
+      selectedRentalPeriods[newRentalPeriod!] = priceController.text;
+      priceController.clear();
+      newRentalPeriod = null;
+    });
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Added $newRentalPeriod rental for JD ${price.toStringAsFixed(2)}'),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
 
-    if (pricePerHourController.text.isEmpty ||
-        pricePerWeekController.text.isEmpty ||
-        pricePerMonthController.text.isEmpty ||
-        pricePerYearController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter all prices")),
-      );
+  Future<void> addItem() async {
+  
+    if (nameController.text.isEmpty) {
+      showErrorSnackBar('Please enter item name');
+      return;
+    }
+    
+    if (selectedCategory == null) {
+      showErrorSnackBar('Please select a category');
+      return;
+    }
+    
+    if (pickedImages.isEmpty) {
+      showErrorSnackBar('Please add at least one image');
+      return;
+    }
+    
+    if (selectedRentalPeriods.isEmpty) {
+      showErrorSnackBar('Please add at least one rental period');
       return;
     }
 
     try {
       final ownerId = FirebaseAuth.instance.currentUser!.uid;
-
       final itemRef = FirebaseFirestore.instance.collection("pending_items").doc();
       final String itemId = itemRef.id;
 
+    
       List<String> downloadUrls = [];
       for (int i = 0; i < pickedImages.length; i++) {
         String url = await StorageService.uploadItemImage(
@@ -91,72 +167,109 @@ class _AddItemPageState extends State<AddItemPage> {
         downloadUrls.add(url);
       }
 
-      await FirebaseFirestore.instance.collection("pending_items").doc(itemId).set({
+    
+      Map<String, dynamic> itemData = {
         "itemId": itemId,
         "ownerId": ownerId,
         "name": nameController.text.trim(),
-        "description": descController.text.trim(),
+        "description": descController.text.trim().isNotEmpty 
+            ? descController.text.trim() 
+            : "",
         "category": selectedCategory,
         "images": downloadUrls,
-        "pricePerHour": double.parse(pricePerHourController.text),
-        "pricePerWeek": double.parse(pricePerWeekController.text),
-        "pricePerMonth": double.parse(pricePerMonthController.text),
-        "pricePerYear": double.parse(pricePerYearController.text),
+        "rentalPeriods": selectedRentalPeriods,
         "createdAt": FieldValue.serverTimestamp(),
         "status": "pending",
+      };
+
+      
+      await itemRef.set(itemData);
+
+      showSuccessSnackBar('Item submitted for approval');
+      
+      
+      Future.delayed(const Duration(milliseconds: 1500), () {
+        Navigator.pop(context);
       });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Item submitted for approval")),
-      );
-
-      Navigator.pop(context);
+      
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error uploading item: $e")),
-      );
+      showErrorSnackBar('Error uploading item: $e');
     }
+  }
+
+  void showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  void showSuccessSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    nameController.dispose();
+    descController.dispose();
+    priceController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final screenHeight = MediaQuery.of(context).size.height;
     final isSmallScreen = screenWidth < 360;
 
     return Scaffold(
       body: Column(
         children: [
-
-          ClipPath(
-            clipper: SideCurveClipper(),
-            child: Container(
-              width: double.infinity,
-              padding: EdgeInsets.only(
-                top: screenHeight * 0.06,
-                bottom: screenHeight * 0.06,
-                left: screenWidth * 0.05,
-                right: screenWidth * 0.05,
+    
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.only(
+              top: MediaQuery.of(context).padding.top + 16,
+              bottom: 20,
+              left: 20,
+              right: 20,
+            ),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF1F0F46), Color(0xFF8A005D)],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
               ),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFF1F0F46), Color(0xFF8A005D)],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(
-                    icon: Icon(
-                      Icons.arrow_back,
-                      color: Colors.white,
-                      size: isSmallScreen ? 24 : 28,
-                    ),
-                    onPressed: () => Navigator.pop(context),
+            ),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: Icon(
+                    Icons.arrow_back,
+                    color: Colors.white,
+                    size: isSmallScreen ? 24 : 28,
                   ),
-                  Text(
+                    onPressed: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CategoryPage(),
+      ),
+    );
+  },
+
+                ),
+               const SizedBox(width: 16),
+                Expanded(
+                  child: Text(
                     widget.item == null ? "Add New Item" : "Edit Item",
                     style: TextStyle(
                       fontSize: isSmallScreen ? 20 : 22,
@@ -164,69 +277,63 @@ class _AddItemPageState extends State<AddItemPage> {
                       color: Colors.white,
                     ),
                   ),
-                  const SizedBox(width: 40),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
-
           Expanded(
             child: Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(30),
-                  topRight: Radius.circular(30),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 20,
-                    offset: const Offset(0, -5),
-                  )
-                ],
-              ),
+              color: Colors.grey[50],
               child: SingleChildScrollView(
                 padding: EdgeInsets.all(isSmallScreen ? 16 : 20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-
+                  
                     Card(
-                      elevation: 3,
+                      elevation: 2,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                       child: Padding(
-                        padding: const EdgeInsets.all(16),
+                        padding:const EdgeInsets.all(16),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Row(
+                            Row(
                               children: [
-                                Icon(Icons.photo_library, color: Color(0xFF8A005D)),
-                                SizedBox(width: 10),
-                                Text(
-                                  "Images",
+                               const Icon(Icons.photo_library, color: Color(0xFF8A005D)),
+                               const SizedBox(width: 8),
+                                const Text(
+                                  "Photos",
                                   style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
                                     color: Color(0xFF1F0F46),
+                                  ),
+                                ),
+                                Spacer(),
+                                Text(
+                                  "${pickedImages.length}/5",
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 14,
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 12),
+                            SizedBox(height: 12),
+                            
+                        
                             InkWell(
                               onTap: pickImages,
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(10),
                               child: Container(
-                                height: 120,
+                                height: 100,
                                 width: double.infinity,
                                 decoration: BoxDecoration(
-                                  color: Colors.grey[50],
-                                  borderRadius: BorderRadius.circular(12),
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(10),
                                   border: Border.all(
                                     color: Color(0xFF8A005D).withOpacity(0.3),
                                     width: 2,
@@ -236,79 +343,72 @@ class _AddItemPageState extends State<AddItemPage> {
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     Icon(
-                                      Icons.camera_alt,
-                                      size: 40,
+                                      Icons.add_photo_alternate,
+                                      size: 32,
                                       color: Color(0xFF8A005D).withOpacity(0.7),
                                     ),
-                                    const SizedBox(height: 8),
+                                    SizedBox(height: 8),
                                     const Text(
-                                      "Tap to add images",
+                                      "Add Photos",
                                       style: TextStyle(
                                         color: Color(0xFF8A005D),
-                                        fontSize: 16,
+                                        fontSize: 14,
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
-                                    if (pickedImages.isNotEmpty)
-                                      Text(
-                                        "(${pickedImages.length} selected)",
-                                        style: TextStyle(
-                                          color: Colors.grey[600],
-                                          fontSize: 14,
-                                        ),
-                                      ),
                                   ],
                                 ),
                               ),
                             ),
+                            
+                        
                             if (pickedImages.isNotEmpty) ...[
-                              const SizedBox(height: 16),
-                              SizedBox(
-                                height: 110,
-                                child: ListView.builder(
-                                  scrollDirection: Axis.horizontal,
-                                  itemCount: pickedImages.length,
-                                  itemBuilder: (context, index) {
-                                    return Padding(
-                                      padding: const EdgeInsets.only(right: 10),
-                                      child: Stack(
-                                        children: [
-                                          Container(
-                                            width: 100,
-                                            height: 100,
-                                            decoration: BoxDecoration(
-                                              borderRadius: BorderRadius.circular(12),
-                                              image: DecorationImage(
-                                                image: FileImage(pickedImages[index]),
-                                                fit: BoxFit.cover,
-                                              ),
-                                              boxShadow: [
-                                                BoxShadow(
-                                                  color: Colors.black.withOpacity(0.1),
-                                                  blurRadius: 5,
-                                                  offset:const Offset(0, 3),
-                                                )
-                                              ],
-                                            ),
-                                          ),
-                                          Positioned(
-                                            top: -5,
-                                            right: -5,
-                                            child: CircleAvatar(
-                                              radius: 14,
-                                              backgroundColor: Colors.red,
-                                              child: IconButton(
-                                                padding: EdgeInsets.zero,
-                                                icon:const Icon(Icons.close, size: 16, color: Colors.white),
-                                                onPressed: () => removeImage(index),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  },
+                              SizedBox(height: 16),
+                              GridView.builder(
+                                shrinkWrap: true,
+                                physics:const NeverScrollableScrollPhysics(),
+                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 3,
+                                  crossAxisSpacing: 8,
+                                  mainAxisSpacing: 8,
+                                  childAspectRatio: 1,
                                 ),
+                                itemCount: pickedImages.length,
+                                itemBuilder: (context, index) {
+                                  return Stack(
+                                    children: [
+                                      Container(
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(8),
+                                          image: DecorationImage(
+                                            image: FileImage(pickedImages[index]),
+                                            fit: BoxFit.cover,
+                                          ),
+                                        ),
+                                      ),
+                                      Positioned(
+                                        top: 4,
+                                        right: 4,
+                                        child: GestureDetector(
+                                          onTap: () => removeImage(index),
+                                          child: Container(
+                                            width: 24,
+                                            height: 24,
+                                            decoration: const BoxDecoration(
+                                              color: Colors.red,
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: const Icon(
+                                              Icons.close,
+                                              size: 16,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
                               ),
                             ],
                           ],
@@ -316,53 +416,53 @@ class _AddItemPageState extends State<AddItemPage> {
                       ),
                     ),
 
-                    const SizedBox(height: 20),
-
+                    SizedBox(height: 16),
 
                     Card(
-                      elevation: 3,
+                      elevation: 2,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                       child: Padding(
-                        padding: const EdgeInsets.all(16),
+                        padding: EdgeInsets.all(16),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Row(
                               children: [
                                 Icon(Icons.info_outline, color: Color(0xFF8A005D)),
-                                SizedBox(width: 10),
+                                SizedBox(width: 8),
                                 Text(
-                                  "Item Details",
+                                  "Basic Information",
                                   style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
                                     color: Color(0xFF1F0F46),
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 16),
+                            SizedBox(height: 16),
 
                             TextField(
                               controller: nameController,
                               decoration: InputDecoration(
-                                labelText: "Item Name",
+                                labelText: "Item Name *",
                                 labelStyle: TextStyle(color: Colors.grey[700]),
                                 border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
+                                  borderRadius: BorderRadius.circular(8),
                                   borderSide: BorderSide(color: Colors.grey[300]!),
                                 ),
                                 focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                  borderSide:const BorderSide(color: Color(0xFF8A005D), width: 2),
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: BorderSide(color: Color(0xFF8A005D), width: 2),
                                 ),
-                                prefixIcon:const Icon(Icons.photo_camera_back, color: Color(0xFF8A005D)),
+                                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                               ),
                             ),
-                            const SizedBox(height: 15),
+                            SizedBox(height: 12),
 
+                        
                             TextField(
                               controller: descController,
                               maxLines: 3,
@@ -370,37 +470,38 @@ class _AddItemPageState extends State<AddItemPage> {
                                 labelText: "Description",
                                 labelStyle: TextStyle(color: Colors.grey[700]),
                                 border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
+                                  borderRadius: BorderRadius.circular(8),
                                   borderSide: BorderSide(color: Colors.grey[300]!),
                                 ),
                                 focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
+                                  borderRadius: BorderRadius.circular(8),
                                   borderSide:const BorderSide(color: Color(0xFF8A005D), width: 2),
                                 ),
-                                prefixIcon:const Icon(Icons.description, color: Color(0xFF8A005D)),
+                                contentPadding:const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                               ),
                             ),
-                            const SizedBox(height: 15),
+                           const SizedBox(height: 12),
 
+                        
                             DropdownButtonFormField<String>(
                               decoration: InputDecoration(
-                                labelText: "Category",
+                                labelText: "Category *",
                                 labelStyle: TextStyle(color: Colors.grey[700]),
                                 border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
+                                  borderRadius: BorderRadius.circular(8),
                                   borderSide: BorderSide(color: Colors.grey[300]!),
                                 ),
                                 focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
+                                  borderRadius: BorderRadius.circular(8),
                                   borderSide:const BorderSide(color: Color(0xFF8A005D), width: 2),
                                 ),
-                                prefixIcon:const Icon(Icons.category, color: Color(0xFF8A005D)),
+                                contentPadding:const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                               ),
-                              initialValue: selectedCategory,
+                              value: selectedCategory,
                               items: categories
                                   .map((cat) => DropdownMenuItem(
                                 value: cat,
-                                child: Text(cat, style: const TextStyle(fontSize: 16)),
+                                child: Text(cat, style: TextStyle(fontSize: 14)),
                               ))
                                   .toList(),
                               onChanged: (value) {
@@ -408,105 +509,295 @@ class _AddItemPageState extends State<AddItemPage> {
                                   selectedCategory = value;
                                 });
                               },
+                              hint:const Text("Select category"),
                             ),
                           ],
                         ),
                       ),
                     ),
 
-                    const SizedBox(height: 20),
+                   const SizedBox(height: 16),
 
-
+                   
                     Card(
-                      elevation: 3,
+                      elevation: 2,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                       child: Padding(
-                        padding: const EdgeInsets.all(16),
+                        padding:const EdgeInsets.all(16),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Row(
                               children: [
-                                Icon(Icons.monetization_on, color: Color(0xFF8A005D)),
-                                SizedBox(width: 10),
+                                Icon(Icons.add_circle_outline, color: Color(0xFF8A005D)),
+                                SizedBox(width: 8),
                                 Text(
-                                  "Rental Prices (JD)",
+                                  "Add Rental Periods",
                                   style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
                                     color: Color(0xFF1F0F46),
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 16),
-
-                            GridView.count(
-                              crossAxisCount: 2,
-                              childAspectRatio: 3,
-                              shrinkWrap: true,
-                              physics:const NeverScrollableScrollPhysics(),
-                              crossAxisSpacing: 10,
-                              mainAxisSpacing: 10,
-                              children: [
-                                _buildPriceField("Hour", pricePerHourController, Icons.access_time),
-                                _buildPriceField("Week", pricePerWeekController, Icons.calendar_today),
-                                _buildPriceField("Month", pricePerMonthController, Icons.date_range),
-                                _buildPriceField("Year", pricePerYearController, Icons.calendar_view_month),
-                              ],
+                           const SizedBox(height: 12),
+                            
+                        
+                            Container(
+                              padding:const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.grey[50],
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.grey[300]!),
+                              ),
+                              child: Column(
+                                children: [
+                                
+                                  DropdownButtonFormField<String>(
+                                    value: newRentalPeriod,
+                                    decoration: const InputDecoration(
+                                      labelText: "Select Rental Period",
+                                      border: InputBorder.none,
+                                      contentPadding: EdgeInsets.zero,
+                                    ),
+                                    items: availableRentalPeriods
+                                        .where((period) => !selectedRentalPeriods.containsKey(period))
+                                        .map((period) => DropdownMenuItem(
+                                              value: period,
+                                              child: Text(
+                                                " $period",
+                                                style:const TextStyle(fontSize: 14),
+                                              ),
+                                            ))
+                                        .toList(),
+                                    onChanged: (value) {
+                                      setState(() {
+                                        newRentalPeriod = value;
+                                      });
+                                    },
+                                    hint:const Text("Choose period"),
+                                  ),
+                                  
+                                 const SizedBox(height: 12),
+                                  
+                                
+                                  TextField(
+                                    controller: priceController,
+                                    keyboardType:const TextInputType.numberWithOptions(decimal: true),
+                                    decoration: InputDecoration(
+                                      labelText: "Price (JD)",
+                                      
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                        borderSide:const BorderSide(color: Color(0xFF8A005D), width: 2),
+                                      ),
+                                    ),
+                                  ),
+                                  
+                                  const SizedBox(height: 16),
+                                  
+                                  
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: ElevatedButton.icon(
+                                      onPressed: addNewRentalPeriod,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Color(0xFF8A005D),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                      ),
+                                      icon:const Icon(Icons.add, size: 20, color: Colors.white),
+                                      label: const Text(
+                                        "Add This Rental Period",
+                                        style: TextStyle(color: Colors.white),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ],
                         ),
                       ),
                     ),
 
-                    const SizedBox(height: 30),
+                  
+                    if (selectedRentalPeriods.isNotEmpty) ...[
+                     const SizedBox(height: 16),
+                      Card(
+                        elevation: 2,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Padding(
+                          padding:const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                 const Icon(Icons.check_circle, color: Colors.green),
+                                 const SizedBox(width: 8),
+                                  const Text(
+                                    "Added Rental Periods",
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF1F0F46),
+                                    ),
+                                  ),
+                                 const Spacer(),
+                                  Container(
+                                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Color(0xFF8A005D).withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      "${selectedRentalPeriods.length} added",
+                                      style: const TextStyle(
+                                        color: Color(0xFF8A005D),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                             const SizedBox(height: 12),
+                              
+                        
+                              ListView.separated(
+                                shrinkWrap: true,
+                                physics:const NeverScrollableScrollPhysics(),
+                                itemCount: selectedRentalPeriods.length,
+                                separatorBuilder: (context, index) => Divider(height: 8),
+                                itemBuilder: (context, index) {
+                                  final period = selectedRentalPeriods.keys.elementAt(index);
+                                  final price = selectedRentalPeriods[period]!;
+                                  
+                                  return Container(
+                                    padding: EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[50],
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                       const Icon(Icons.schedule, color: Color(0xFF8A005D)),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                "Per $period",
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                             const SizedBox(height: 4),
+                                              Text(
+                                                "JD ${price}",
+                                                style: TextStyle(
+                                                  color: Colors.green[700],
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        IconButton(
+                                          onPressed: () => removeRentalPeriod(period),
+                                          icon: Icon(Icons.delete_outline, color: Colors.red),
+                                          tooltip: "Remove",
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
 
+                    if (selectedRentalPeriods.isEmpty) ...[
+                      SizedBox(height: 16),
+                      Container(
+                        padding: EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.amber[50],
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.amber[200]!),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.info, color: Colors.amber[700], size: 24),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    "Add Rental Periods",
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.amber[900],
+                                    ),
+                                  ),
+                                  SizedBox(height: 4),
+                                  Text(
+                                    "Use the 'Add Rental Periods' section above to add hourly, daily, weekly, monthly, or yearly rental options.",
+                                    style: TextStyle(
+                                      color: Colors.amber[800],
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
 
+                  
+                    const SizedBox(height: 24),
                     Container(
                       width: double.infinity,
-                      height: 55,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF1F0F46), Color(0xFF8A005D)],
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
-                        ),
-                        borderRadius: BorderRadius.circular(15),
-                        boxShadow: [
-                          BoxShadow(
-                            // ignore: deprecated_member_use
-                            color: const Color(0xFF8A005D).withOpacity(0.3),
-                            blurRadius: 10,
-                            offset: const Offset(0, 5),
-                          )
-                        ],
-                      ),
+                      height: 50,
                       child: ElevatedButton(
                         onPressed: addItem,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          shadowColor: Colors.transparent,
+                          backgroundColor: Color(0xFF8A005D),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(15),
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                          padding: EdgeInsets.zero,
+                          elevation: 3,
+                          shadowColor: Color(0xFF8A005D).withOpacity(0.3),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
-                              widget.item == null ? Icons.add_circle_outline : Icons.edit,
+                              widget.item == null ? Icons.add : Icons.save,
                               color: Colors.white,
-                              size: 24,
+                              size: 22,
                             ),
-                            const SizedBox(width: 10),
+                            SizedBox(width: 10),
                             Text(
-                              widget.item == null ? "Add Item" : "Update Item",
+                              widget.item == null ? "Submit Item" : "Update Item",
                               style: const TextStyle(
-                                fontSize: 18,
+                                fontSize: 16,
                                 fontWeight: FontWeight.w600,
                                 color: Colors.white,
                               ),
@@ -516,7 +807,7 @@ class _AddItemPageState extends State<AddItemPage> {
                       ),
                     ),
 
-                    const SizedBox(height: 20),
+                    SizedBox(height: 20),
                   ],
                 ),
               ),
@@ -526,52 +817,4 @@ class _AddItemPageState extends State<AddItemPage> {
       ),
     );
   }
-
-  Widget _buildPriceField(String label, TextEditingController controller, IconData icon) {
-    return TextField(
-      controller: controller,
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      decoration: InputDecoration(
-        labelText: "Price per $label",
-        labelStyle: TextStyle(color: Colors.grey[700], fontSize: 14),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Colors.grey[300]!),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFF8A005D), width: 2),
-        ),
-        prefixIcon: Icon(icon, color: Color(0xFF8A005D), size: 20),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      ),
-    );
-  }
-}
-
-class SideCurveClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    double radius = 40;
-    Path path = Path();
-    path.moveTo(0, 0);
-    path.lineTo(0, size.height);
-    path.arcToPoint(
-      Offset(radius, size.height - radius),
-      radius: Radius.circular(radius),
-      clockwise: true,
-    );
-    path.lineTo(size.width - radius, size.height - radius);
-    path.arcToPoint(
-      Offset(size.width, size.height),
-      radius: Radius.circular(radius),
-      clockwise: true,
-    );
-    path.lineTo(size.width, 0);
-    path.close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }
