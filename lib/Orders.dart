@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:p2/AddItemPage%20.dart';
 import 'package:p2/Chats_Page.dart';
 import 'package:p2/QrPage.dart';
-import 'PaymentPage.dart';
+import 'package:p2/WalletPage.dart';
 import 'app_locale.dart';
 import 'Setting.dart';
 import 'Categories_Page.dart';
@@ -69,7 +69,7 @@ class _OrdersPageState extends State<OrdersPage> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const PaymentPage(),
+                              builder: (context) => const WalletHomePage(),
                             ),
                           );
                         },
