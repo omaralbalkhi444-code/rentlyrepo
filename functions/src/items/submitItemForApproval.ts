@@ -1,5 +1,6 @@
 import { onCall } from "firebase-functions/v2/https";
-import * as admin from "firebase-admin";
+import { getFirestore, Timestamp } from "firebase-admin/firestore";
+//import * as admin from "firebase-admin";
 
 export const submitItemForApproval = onCall(async (request) => {
   const ownerId = request.auth?.uid;
@@ -7,23 +8,23 @@ export const submitItemForApproval = onCall(async (request) => {
 
   const data = request.data;
 
-  const ref = admin.firestore().collection("pending_items").doc();
+  const db = getFirestore();
+
+  const ref = db.collection("pending_items").doc();
   const itemId = ref.id;
 
   await ref.set({
-    itemId: itemId,
-    ownerId: ownerId,
+    itemId,
+    ownerId,
     name: data.name,
-    description: data.description,
+    description: data.description ?? "",
     category: data.category,
-    imageUrls: data.imageUrls,
-    pricePerHour: data.pricePerHour,
-    pricePerWeek: data.pricePerWeek,
-    pricePerMonth: data.pricePerMonth,
-    pricePerYear: data.pricePerYear,
+    subCategory: data.subCategory,
+    images: data.images ?? [],
+    rentalPeriods: data.rentalPeriods ?? {},
     status: "pending",
-    submittedAt: admin.firestore.FieldValue.serverTimestamp(),
+    submittedAt: Timestamp.now(),
   });
 
-  return { success: true, itemId: itemId };
+  return { success: true, itemId };
 });

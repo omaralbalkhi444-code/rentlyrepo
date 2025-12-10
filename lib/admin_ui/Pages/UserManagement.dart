@@ -64,6 +64,122 @@ class UserManagementPage extends StatelessWidget {
   }
 }
 
+class UserExpansionCard extends StatelessWidget {
+  final Map<String, dynamic> data;
+  final String userId;
+  final Widget actions; // Approve / Reject / Delete
+
+  const UserExpansionCard({
+    super.key,
+    required this.data,
+    required this.userId,
+    required this.actions,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.all(8),
+      elevation: 3,
+      color: const Color(0xFFF5F1FF),
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+
+        title: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "${data['firstName']} ${data['lastName']}",
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    data["email"] ?? "",
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+
+            actions, // Buttons appear here
+          ],
+        ),
+
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _info("Phone", data["phone"]),
+                _info("Birth Date", data["birthDate"]),
+                const SizedBox(height: 10),
+
+                if (data["idPhotoUrl"] != null)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text("ID Photo",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          )),
+                      const SizedBox(height: 6),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          data["idPhotoUrl"],
+                          height: 150,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      const SizedBox(height: 15),
+                    ],
+                  ),
+
+                if (data["selfiePhotoUrl"] != null)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text("Selfie",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          )),
+                      const SizedBox(height: 6),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          data["selfiePhotoUrl"],
+                          height: 150,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      const SizedBox(height: 15),
+                    ],
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _info(String label, String? value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Text(
+        "$label: ${value ?? ''}",
+        style: const TextStyle(fontSize: 14),
+      ),
+    );
+  }
+}
+
 class PendingUsersTab extends StatelessWidget {
   const PendingUsersTab({super.key});
 
@@ -75,141 +191,49 @@ class PendingUsersTab extends StatelessWidget {
           .where("status", isEqualTo: "pending")
           .snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          print("FIRESTORE ERROR: ${snapshot.error}");
-          return Center(child: Text("Error: ${snapshot.error}"));
-        }
-
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
         final users = snapshot.data!.docs;
-
-        if (users.isEmpty) {
-          return const Center(child: Text("No pending users"));
-        }
+        if (users.isEmpty) return const Center(child: Text("No pending users"));
 
         return ListView(
           children: users.map((doc) {
             final data = doc.data() as Map<String, dynamic>;
 
-            return Card(
-              margin: const EdgeInsets.all(8),
-              color: const Color(0xFFE3DFF3),
-              child: ExpansionTile(
-                title: Text("${data['firstName']} ${data['lastName']}"),
-                subtitle: Text(data['email'] ?? ""),
-
+            return UserExpansionCard(
+              data: data,
+              userId: doc.id,
+              actions: Row(
                 children: [
-                  _userInfoRow("Phone", data['phone']),
-                  _userInfoRow("Birth Date", data['birthDate']),
-                  const SizedBox(height: 10),
-
-                  // ID Image
-                  if (data['idPhotoUrl'] != null)
-                    Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Column(
-                        children: [
-                          const Text("ID Photo",
-                              style: TextStyle(fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 8),
-                          Image.network(data['idPhotoUrl'], height: 180),
-                        ],
-                      ),
-                    ),
-
-                  // Selfie Image
-                  if (data['selfiePhotoUrl'] != null)
-                    Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Column(
-                        children: [
-                          const Text("Selfie",
-                              style: TextStyle(fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 8),
-                          Image.network(data['selfiePhotoUrl'], height: 180),
-                        ],
-                      ),
-                    ),
-
-                  const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      ElevatedButton.icon(
-                        onPressed: () async {
-                          await FirebaseFunctions.instance
-                              .httpsCallable("approveUser")
-                              .call({"uid": doc.id});
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("User Approved")),
-                          );
-                        },
-                        icon: const Icon(Icons.check),
-                        label: const Text("Approve"),
-                        style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green),
-                      ),
-                      const SizedBox(width: 8),
-                      ElevatedButton.icon(
-                        onPressed: () async {
-                          await FirebaseFunctions.instance
-                              .httpsCallable("rejectUser")
-                              .call({"uid": doc.id});
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("User Rejected")),
-                          );
-                        },
-                        icon: const Icon(Icons.close),
-                        label: const Text("Reject"),
-                        style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red),
-                      ),
-                      const SizedBox(width: 10),
-                    ],
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      await FirebaseFunctions.instance
+                          .httpsCallable("approveUser")
+                          .call({"uid": doc.id});
+                    },
+                    icon: const Icon(Icons.check),
+                    label: const Text("Approve"),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
                   ),
-                  const SizedBox(height: 10)
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      await FirebaseFunctions.instance
+                          .httpsCallable("rejectUser")
+                          .call({"uid": doc.id});
+                    },
+                    icon: const Icon(Icons.close),
+                    label: const Text("Reject"),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                  ),
                 ],
               ),
             );
-            /*margin: const EdgeInsets.all(8),
-                color: const Color(0xFFE3DFF3),
-                child: ListTile(
-                  title: Text("${data['firstName']} ${data['lastName']}"),
-                  subtitle: Text(data['email'] ?? ""),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.check, color: Colors.green),
-                        onPressed: () async {
-                          await FirestoreService().approveUser(doc.id);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text("User Approved")),
-                          );
-                        },
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close, color: Colors.red),
-                        onPressed: () async {
-                          await FirestoreService().rejectUser(doc.id);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("User Rejected")),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              );*/
           }).toList(),
         );
       },
     );
   }
-
+}
 
   Widget _userInfoRow(String label, String? value) {
     return Padding(
@@ -222,7 +246,6 @@ class PendingUsersTab extends StatelessWidget {
       ),
     );
   }
-}
 
 class RejectedUsersTab extends StatelessWidget {
   const RejectedUsersTab({super.key});
@@ -235,9 +258,7 @@ class RejectedUsersTab extends StatelessWidget {
           .where("status", isEqualTo: "rejected")
           .snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.hasError) return const Center(child: Text("Error"));
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-
         final users = snapshot.data!.docs;
         if (users.isEmpty) return const Center(child: Text("No rejected users"));
 
@@ -245,13 +266,10 @@ class RejectedUsersTab extends StatelessWidget {
           children: users.map((doc) {
             final data = doc.data() as Map<String, dynamic>;
 
-            return Card(
-              margin: const EdgeInsets.all(8),
-              color: Colors.grey.shade300,
-              child: ListTile(
-                title: Text("${data['firstName']} ${data['lastName']}"),
-                subtitle: Text(data['email'] ?? ""),
-              ),
+            return UserExpansionCard(
+              data: data,
+              userId: doc.id,
+              actions: const SizedBox.shrink(), // No buttons
             );
           }).toList(),
         );
@@ -268,30 +286,22 @@ class ActiveUsersTab extends StatelessWidget {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection("users").snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return const Center(child: Text("Error loading users"));
-        }
-
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
         final users = snapshot.data!.docs;
-
-        if (users.isEmpty) {
-          return const Center(child: Text("No active users"));
-        }
+        if (users.isEmpty) return const Center(child: Text("No active users"));
 
         return ListView(
           children: users.map((doc) {
             final data = doc.data() as Map<String, dynamic>;
 
-            return Card(
-              margin: const EdgeInsets.all(8),
-              color: const Color(0xFFFFE5E5),
-              child: ListTile(
-                title: Text("${data['firstName']} ${data['lastName']}"),
-                subtitle: Text(data['email'] ?? ""),
+            return UserExpansionCard(
+              data: data,
+              userId: doc.id,
+              actions: IconButton(
+                icon: const Icon(Icons.delete, color: Colors.red),
+                onPressed: () {
+                  FirebaseFirestore.instance.collection("users").doc(doc.id).delete();
+                },
               ),
             );
           }).toList(),

@@ -1,6 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'Fake data.dart';
-import 'EquipmentItem.dart';
 import 'Equipment_Detail_Page.dart';
 
 class ProductListPage extends StatefulWidget {
@@ -16,25 +15,16 @@ class _ProductListPageState extends State<ProductListPage> {
 
   @override
   Widget build(BuildContext context) {
-    final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+    final args =
+    ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
 
     final String categoryTitle = args["category"];
-    final String subCategoryTitle = args["subcategory"];
-
-    final matchedItems = DUMMY_EQUIPMENT.where((item) {
-      return item.category == categoryTitle &&
-          item.subCategory == subCategoryTitle;
-    }).toList();
-
-    final displayedItems = matchedItems.where((item) {
-      return item.title.toLowerCase().contains(searchQuery.toLowerCase());
-    }).toList();
+    final String subCategoryTitle = args["subCategory"];
 
     return Scaffold(
       body: SafeArea(
         child: Column(
           children: [
-            // HEADER
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
@@ -67,7 +57,6 @@ class _ProductListPageState extends State<ProductListPage> {
               ),
             ),
 
-            // SEARCH FIELD
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: TextField(
@@ -85,23 +74,161 @@ class _ProductListPageState extends State<ProductListPage> {
               ),
             ),
 
-            // PRODUCT LIST
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: displayedItems.isEmpty
-                    ? const Center(
-                  child: Text(
-                    'No products found!',
-                    style: TextStyle(fontSize: 18),
-                  ),
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection("items")
+                    .where("category", isEqualTo: categoryTitle)
+                    .where("subCategory", isEqualTo: subCategoryTitle)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  final docs = snapshot.data!.docs;
+
+                  final filtered = docs.where((doc) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    final title = (data["name"] ?? "").toString().toLowerCase();
+                    return title.contains(searchQuery.toLowerCase());
+                  }).toList();
+
+                  if (filtered.isEmpty) {
+                    return const Center(
+                      child: Text(
+                        'No products found!',
+                        style: TextStyle(fontSize: 18),
+                      ),
+                    );
+                  }
+
+                  return GridView.builder(
+                    padding: const EdgeInsets.all(12),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      childAspectRatio: 0.70, // Adjust tile height
+                    ),
+                    itemCount: filtered.length,
+                    itemBuilder: (context, index) {
+                      final data = filtered[index].data() as Map<String, dynamic>;
+                      return ProductTile(
+                        itemData: data,
+                        itemId: filtered[index].id,
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ProductTile extends StatelessWidget {
+  final Map<String, dynamic> itemData;
+  final String itemId;
+
+  const ProductTile({
+    super.key,
+    required this.itemData,
+    required this.itemId,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final images = List<String>.from(itemData["images"] ?? []);
+    final rental = Map<String, dynamic>.from(itemData["rentalPeriods"] ?? {});
+
+    return GestureDetector(
+      onTap: () => Navigator.pushNamed(
+        context,
+        EquipmentDetailPage.routeName,
+        arguments: {
+          "itemId": itemId,
+          "data": itemData,
+        },
+      ),
+      child: Card(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        elevation: 3,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              child: Container(
+                height: 120,
+                width: double.infinity,
+                color: Colors.grey.shade200,
+                child: images.isNotEmpty
+                    ? Image.network(
+                  images.first,
+                  fit: BoxFit.cover,
                 )
-                    : ListView.builder(
-                  itemCount: displayedItems.length,
-                  itemBuilder: (context, index) {
-                    return ProductCard(item: displayedItems[index]);
-                  },
+                    : const Icon(Icons.image_not_supported, size: 40),
+              ),
+            ),
+
+            Padding(
+              padding: const EdgeInsets.all(10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    itemData["name"] ?? "No Title",
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+
+                  const SizedBox(height: 4),
+
+                  Text(
+                    itemData["description"] ?? "",
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+
+                  const SizedBox(height: 6),
+
+              const Text(
+                "Pricing:",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                  color: Color(0xFF8A005D),
                 ),
+              ),
+              const SizedBox(height: 4),
+
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: rental.entries.map((entry) {
+                  return Text(
+                    "${entry.key}: ${entry.value} JOD",
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  );
+                }).toList(),
+              )
+                ],
               ),
             ),
           ],
@@ -112,16 +239,36 @@ class _ProductListPageState extends State<ProductListPage> {
 }
 
 class ProductCard extends StatelessWidget {
-  final EquipmentItem item;
-  const ProductCard({super.key, required this.item});
+  final Map<String, dynamic> itemData;
+  final String itemId;
+
+  const ProductCard({
+    super.key,
+    required this.itemData,
+    required this.itemId,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final images = List<String>.from(itemData["images"] ?? []);
+    final rental = Map<String, dynamic>.from(itemData["rentalPeriods"] ?? {});
+
+    // Extract first rental period
+    String priceText = "No rental price";
+    if (rental.isNotEmpty) {
+      final firstKey = rental.keys.first;
+      final firstPrice = rental[firstKey];
+      priceText = "From JOD $firstPrice / $firstKey";
+    }
+
     return GestureDetector(
       onTap: () => Navigator.pushNamed(
         context,
         EquipmentDetailPage.routeName,
-        arguments: item,
+        arguments: {
+          "itemId": itemId,
+          "data": itemData,
+        },
       ),
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 8),
@@ -130,14 +277,14 @@ class ProductCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.2),
+              color: Colors.grey.withOpacity(0.15),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
           ],
         ),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(14),
           child: Row(
             children: [
               Container(
@@ -145,30 +292,53 @@ class ProductCard extends StatelessWidget {
                 height: 60,
                 decoration: BoxDecoration(
                   color: const Color(0xFF8A005D).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(10),
+                  image: images.isNotEmpty
+                      ? DecorationImage(
+                    image: NetworkImage(images.first),
+                    fit: BoxFit.cover,
+                  )
+                      : null,
                 ),
-                child: Icon(item.icon, size: 30, color: const Color(0xFF8A005D)),
+                child: images.isEmpty
+                    ? const Icon(Icons.image_not_supported,
+                    color: Colors.grey)
+                    : null,
               ),
+
               const SizedBox(width: 12),
+
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(item.title,
-                        style: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 4),
-                    Text(item.description,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            fontSize: 12, color: Colors.grey.shade600)),
-                    const SizedBox(height: 8),
                     Text(
-                      "JOD ${item.pricePerHour.toStringAsFixed(2)} / hour",
+                      itemData["name"] ?? "No Title",
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+
+                    const SizedBox(height: 4),
+
+                    Text(
+                      itemData["description"] ?? "",
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+
+                    const SizedBox(height: 8),
+
+                    Text(
+                      priceText,
                       style: const TextStyle(
                         fontSize: 14,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w600,
                         color: Color(0xFF8A005D),
                       ),
                     ),

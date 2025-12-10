@@ -13,7 +13,7 @@ class SubCategoryPage extends StatelessWidget {
 
   static final Map<String, List<Map<String, dynamic>>> subCategories = {
     "c1": [
-      {"title": "Camera & Photography", "icon": Icons.photo_camera},
+      {"title": "Cameras & Photography", "icon": Icons.photo_camera},
       {"title": "Audio & Video", "icon": Icons.speaker},
     ],
     "c2": [
@@ -112,7 +112,7 @@ class SubCategoryPage extends StatelessWidget {
                           context,
                           ProductListPage.routeName,
                           arguments: {
-                            "subcategory": sub["title"],
+                            "subCategory": sub["title"],
                             "category": categoryTitle,
                           },
                         );

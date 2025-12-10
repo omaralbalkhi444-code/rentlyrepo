@@ -3,8 +3,6 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../services/firestore_service.dart';
-
 class ItemManagementPage extends StatelessWidget {
   const ItemManagementPage({super.key});
 
@@ -31,11 +29,9 @@ class ItemManagementPage extends StatelessWidget {
                   Row(
                     children: [
                       IconButton(
-                        icon: const Icon(
-                            Icons.arrow_back, color: Colors.white, size: 28),
-                        onPressed: () {
-                          context.go('/dashboard');
-                        },
+                        icon: const Icon(Icons.arrow_back,
+                            color: Colors.white, size: 28),
+                        onPressed: () => context.go('/dashboard'),
                       ),
                       const SizedBox(width: 8),
                       const Text(
@@ -49,27 +45,23 @@ class ItemManagementPage extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 10),
-                  Container(
-                    decoration: BoxDecoration(
+                  TabBar(
+                    indicator: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: TabBar(
-                      indicator: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      labelColor: Colors.white,
-                      unselectedLabelColor: Colors.white70,
-                      tabs: const [
-                        Tab(text: "Pending Items"),
-                        Tab(text: "Rejected Items"),
-                        Tab(text: "Approved Items"),
-                      ],
-                    ),
+                    labelColor: Colors.white,
+                    unselectedLabelColor: Colors.white70,
+                    tabs: const [
+                      Tab(text: "Pending Items"),
+                      Tab(text: "Rejected Items"),
+                      Tab(text: "Approved Items"),
+                    ],
                   ),
                 ],
               ),
             ),
+
             Expanded(
               child: TabBarView(
                 children: [
@@ -81,6 +73,120 @@ class ItemManagementPage extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class ItemExpansionCard extends StatelessWidget {
+  final Map<String, dynamic> data;
+  final String itemId;
+  final Widget actions;
+
+  const ItemExpansionCard({
+    super.key,
+    required this.data,
+    required this.itemId,
+    required this.actions,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final images = List<String>.from(data["images"] ?? []);
+    final rental = Map<String, dynamic>.from(data["rentalPeriods"] ?? {});
+
+    return Card(
+      margin: const EdgeInsets.all(8),
+      elevation: 3,
+      color: const Color(0xFFF5F1FF),
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+
+        title: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    data["name"] ?? "No Title",
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    "${data["category"] ?? ""} • ${data["subCategory"] ?? ""}",
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+
+            actions,
+          ],
+        ),
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text("Description: ${data["description"] ?? ""}",
+                    style: const TextStyle(fontSize: 14)),
+                const SizedBox(height: 10),
+
+                Text("Owner ID: ${data["ownerId"] ?? ""}",
+                    style: const TextStyle(fontSize: 13)),
+                const SizedBox(height: 15),
+
+                if (images.isNotEmpty) ...[
+                  const Text("Images:",
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  SizedBox(
+                    height: 120,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: images.length,
+                      itemBuilder: (context, index) => Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            images[index],
+                            height: 120,
+                            width: 120,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 15),
+                ],
+
+                if (rental.isNotEmpty) ...[
+                  const Text("Rental Periods:",
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: rental.entries.map(
+                          (entry) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: Text(
+                          "• ${entry.key}: JOD ${entry.value}",
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      ),
+                    ).toList(),
+                  ),
+                ],
+
+                const SizedBox(height: 10),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -99,61 +205,54 @@ class PendingItemsTab extends StatelessWidget {
       builder: (context, snapshot) {
         if (!snapshot.hasData)
           return const Center(child: CircularProgressIndicator());
-        final items = snapshot.data!.docs;
 
-        if (items.isEmpty) return const Center(child: Text("No pending items"));
+        final docs = snapshot.data!.docs;
+        if (docs.isEmpty) return const Center(child: Text("No pending items"));
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: items.length,
-          itemBuilder: (context, index) {
-            final doc = items[index];
+        return ListView(
+          children: docs.map((doc) {
             final data = doc.data() as Map<String, dynamic>;
 
-            return Card(
-              margin: const EdgeInsets.symmetric(vertical: 8),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-              elevation: 4,
-              child: ListTile(
-                title: Text(
-                  data["title"] ?? "",
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                subtitle: Text(data["description"] ?? ""),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.check, color: Colors.green),
-                      onPressed: () async {
-                        await FirebaseFunctions.instance
-                            .httpsCallable("approveItem")
-                            .call({"itemId": doc.id});
+            return ItemExpansionCard(
+              data: data,
+              itemId: doc.id,
+              actions: Row(
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      await FirebaseFunctions.instance
+                          .httpsCallable("approveItem")
+                          .call({"itemId": doc.id});
 
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text("Item Approved")),
-                        );
-                      },
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close, color: Colors.red),
-                      onPressed: () async {
-                        await FirebaseFunctions.instance
-                            .httpsCallable("rejectItem")
-                            .call({"itemId": doc.id});
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("Item Approved")),
+                      );
+                    },
+                    icon: const Icon(Icons.check),
+                    label: const Text("Approve"),
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green),
+                  ),
+                  const SizedBox(width: 10),
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      await FirebaseFunctions.instance
+                          .httpsCallable("rejectItem")
+                          .call({"itemId": doc.id});
 
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text("Item Rejected")),
-                        );
-                      },
-                    ),
-                  ],
-                ),
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("Item Rejected")),
+                      );
+                    },
+                    icon: const Icon(Icons.close),
+                    label: const Text("Reject"),
+                    style:
+                    ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                  ),
+                ],
               ),
             );
-          },
+          }).toList(),
         );
       },
     );
@@ -171,32 +270,22 @@ class RejectedItemsTab extends StatelessWidget {
           .where("status", isEqualTo: "rejected")
           .snapshots(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-        final items = snapshot.data!.docs;
+        if (!snapshot.hasData)
+          return const Center(child: CircularProgressIndicator());
 
-        if (items.isEmpty) return const Center(child: Text("No rejected items"));
+        final docs = snapshot.data!.docs;
+        if (docs.isEmpty) return const Center(child: Text("No rejected items"));
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: items.length,
-          itemBuilder: (context, index) {
-            final doc = items[index];
+        return ListView(
+          children: docs.map((doc) {
             final data = doc.data() as Map<String, dynamic>;
-
-            return Card(
-              margin: const EdgeInsets.symmetric(vertical: 8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              elevation: 4,
-              child: ListTile(
-                title: Text(
-                  data["title"] ?? "",
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                subtitle: Text(data["description"] ?? ""),
-                trailing: const Icon(Icons.block, color: Colors.red),
-              ),
+            return ItemExpansionCard(
+              data: data,
+              itemId: doc.id,
+              actions: const Text("Rejected",
+                  style: TextStyle(color: Colors.red, fontSize: 16)),
             );
-          },
+          }).toList(),
         );
       },
     );
@@ -214,44 +303,31 @@ class ApprovedItemsTab extends StatelessWidget {
           .where("status", isEqualTo: "approved")
           .snapshots(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-        final items = snapshot.data!.docs;
+        if (!snapshot.hasData)
+          return const Center(child: CircularProgressIndicator());
 
-        if (items.isEmpty) return const Center(child: Text("No approved items"));
+        final docs = snapshot.data!.docs;
+        if (docs.isEmpty) return const Center(child: Text("No approved items"));
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: items.length,
-          itemBuilder: (context, index) {
-            final doc = items[index];
+        return ListView(
+          children: docs.map((doc) {
             final data = doc.data() as Map<String, dynamic>;
-
-            return Card(
-              margin: const EdgeInsets.symmetric(vertical: 8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              elevation: 4,
-              child: ListTile(
-                title: Text(
-                  data["title"] ?? "",
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                subtitle: Text(data["description"] ?? ""),
-                trailing: IconButton(
-                  icon: const Icon(Icons.delete, color: Colors.red),
-                  onPressed: () {
-                    FirebaseFirestore.instance
-                        .collection("items")
-                        .doc(doc.id)
-                        .delete();
-                  },
-                ),
+            return ItemExpansionCard(
+              data: data,
+              itemId: doc.id,
+              actions: IconButton(
+                icon: const Icon(Icons.delete, color: Colors.red),
+                onPressed: () {
+                  FirebaseFirestore.instance
+                      .collection("items")
+                      .doc(doc.id)
+                      .delete();
+                },
               ),
             );
-          },
+          }).toList(),
         );
       },
     );
   }
 }
-
-

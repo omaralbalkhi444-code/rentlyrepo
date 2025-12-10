@@ -1,12 +1,14 @@
 import { onCall } from "firebase-functions/v2/https";
-import * as admin from "firebase-admin";
+import { getFirestore, Timestamp } from "firebase-admin/firestore";
 
 export const approveItem = onCall(async (request) => {
   const itemId = request.data.itemId;
   if (!itemId) throw new Error("Missing itemId");
 
-  const pendingRef = admin.firestore().collection("pending_items").doc(itemId);
-  const itemsRef = admin.firestore().collection("items").doc(itemId);
+  const db = getFirestore();
+
+  const pendingRef = db.collection("pending_items").doc(itemId);
+  const itemsRef = db.collection("items").doc(itemId);
 
   const snap = await pendingRef.get();
   if (!snap.exists) throw new Error("Pending item not found");
@@ -16,12 +18,12 @@ export const approveItem = onCall(async (request) => {
   await itemsRef.set({
     ...data,
     status: "approved",
-    approvedAt: admin.firestore.FieldValue.serverTimestamp(),
+    approvedAt: Timestamp.now(),
   });
 
   await pendingRef.update({
     status: "approved",
-    reviewedAt: admin.firestore.FieldValue.serverTimestamp(),
+    reviewedAt: Timestamp.now(),
   });
 
   return { success: true };
