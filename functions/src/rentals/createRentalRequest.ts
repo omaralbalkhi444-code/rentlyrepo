@@ -12,6 +12,7 @@ export const createRentalRequest = onCall(async (request) => {
     "itemTitle",
     "itemOwnerUid",
     "rentalType",
+    "rentalQuantity",
     "startDate",
     "endDate",
     "pickupTime",

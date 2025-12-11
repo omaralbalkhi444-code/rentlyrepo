@@ -16,4 +16,5 @@ export { submitItemForApproval } from "./items/submitItemForApproval";
 export { approveItem } from "./items/approveItem";
 export { rejectItem } from "./items/rejectItem";
 
-export { createRentalRequest } from "./users/createRentalRequest";
+export { createRentalRequest } from "./rentals/createRentalRequest";
+export { updateRentalRequestStatus } from "./rentals/updateRentalRequestStatus";

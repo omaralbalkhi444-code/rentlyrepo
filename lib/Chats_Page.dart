@@ -4,6 +4,7 @@ import 'ChatScreen.dart';
 import 'Categories_Page.dart';
 import 'Orders.dart';
 import 'Setting.dart';
+import 'bottom_nav.dart';
 import 'fake_uid.dart';
 
 class ChatsPage extends StatefulWidget {
@@ -39,7 +40,7 @@ class _ChatsPageState extends State<ChatsPage> {
           Expanded(child: _chatList()),
         ],
       ),
-      bottomNavigationBar: _bottomNav(),
+      bottomNavigationBar: const SharedBottomNav(currentIndex: 4),
     );
   }
 
@@ -209,7 +210,7 @@ class _ChatsPageState extends State<ChatsPage> {
   }
 
   /// --------------------------
-  ///  NAV BAR 
+  ///  NAV BAR
   /// --------------------------
   Widget _bottomNav() {
     return Container(

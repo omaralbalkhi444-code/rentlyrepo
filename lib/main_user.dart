@@ -1,10 +1,9 @@
-
-
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'Item.dart';
 import 'sub_category_page.dart';
-import 'package:p2/EquipmentItem.dart';
+
 import 'Categories_Page.dart';
 import 'PaymentPage.dart';
 import 'Rently_Logo.dart';
@@ -24,8 +23,8 @@ import 'AddItemPage .dart';
 import 'Payment2.dart';
 import 'Last Activity.dart';
 import 'withdraw_page.dart';
+
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_app_check/firebase_app_check.dart';
 
 class UserHomePage extends StatelessWidget {
   const UserHomePage({super.key});
@@ -41,7 +40,7 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  
+
   runApp(const MyApp());
 }
 
@@ -80,10 +79,10 @@ class MyApp extends StatelessWidget {
             '/favorites': (context) => const FavouritePage(),
             '/cardPayment': (context) => const CardPaymentPage(),
             '/wallet': (context) => const WalletPage(),
-           },
+          },
 
           onGenerateRoute: (settings) {
-
+            // Product Listing
             if (settings.name == ProductListPage.routeName) {
               return MaterialPageRoute(
                 builder: (context) => const ProductListPage(),
@@ -91,39 +90,36 @@ class MyApp extends StatelessWidget {
               );
             }
 
+            // Equipment Detail Page
             if (settings.name == EquipmentDetailPage.routeName) {
-              
-              final equipment = settings.arguments as EquipmentItem?;
+              final item = settings.arguments as Item;
+
               return MaterialPageRoute(
-                builder: (context) => EquipmentDetailPage(),
+                builder: (context) => const EquipmentDetailPage(),
                 settings: settings,
               );
             }
 
+            // Add Item Page
             if (settings.name == '/add-item') {
-              final item = settings.arguments as EquipmentItem?;
+              final data = settings.arguments as Map<String, dynamic>?;
+
               return MaterialPageRoute(
-                builder: (context) => AddItemPage(item: item),
+                builder: (context) => AddItemPage(
+                  existingItem: data?["item"],
+                ),
                 settings: settings,
               );
             }
-           
+
+            // Map Page
             if (settings.name == '/map') {
-              final latLng = settings.arguments as LatLng?;
-              if (latLng != null) {
-                return MaterialPageRoute(
-                  builder: (context) => MapScreen(initialPosition: latLng),
-                  settings: settings,
-                );
-              } else {
-                return MaterialPageRoute(
-                  builder: (context) => Scaffold(
-                    appBar: AppBar(title: const Text('Map')),
-                    body: const Center(child: Text('Map: location not provided')),
-                  ),
-                  settings: settings,
-                );
-              }
+              final position = settings.arguments as LatLng?;
+              return MaterialPageRoute(
+                builder: (context) =>
+                    MapScreen(initialPosition: position),
+                settings: settings,
+              );
             }
 
             return null;
@@ -142,7 +138,3 @@ class MainPage extends StatelessWidget {
     return const CategoryPage();
   }
 }
-
-
-
-

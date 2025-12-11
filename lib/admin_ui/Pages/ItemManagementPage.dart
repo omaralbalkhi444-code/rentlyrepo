@@ -78,6 +78,10 @@ class ItemManagementPage extends StatelessWidget {
   }
 }
 
+/// ---------------------------------------------------------------------------
+/// SHARED EXPANSION CARD FOR ALL ITEM TYPES
+/// ---------------------------------------------------------------------------
+
 class ItemExpansionCard extends StatelessWidget {
   final Map<String, dynamic> data;
   final String itemId;
@@ -94,6 +98,10 @@ class ItemExpansionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final images = List<String>.from(data["images"] ?? []);
     final rental = Map<String, dynamic>.from(data["rentalPeriods"] ?? {});
+    final latitude = data["latitude"];
+    final longitude = data["longitude"];
+    final rating = data["rating"] ?? 0.0;
+    final reviews = List<Map<String, dynamic>>.from(data["reviews"] ?? []);
 
     return Card(
       margin: const EdgeInsets.all(8),
@@ -120,27 +128,41 @@ class ItemExpansionCard extends StatelessWidget {
                 ],
               ),
             ),
-
             actions,
           ],
         ),
+
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                /// DESCRIPTION
                 Text("Description: ${data["description"] ?? ""}",
                     style: const TextStyle(fontSize: 14)),
                 const SizedBox(height: 10),
 
+                /// OWNER ID
                 Text("Owner ID: ${data["ownerId"] ?? ""}",
                     style: const TextStyle(fontSize: 13)),
-                const SizedBox(height: 15),
+                const SizedBox(height: 10),
 
+                /// LOCATION (shown for all item states)
+                if (latitude != null && longitude != null) ...[
+                  const Text("Location:",
+                      style:
+                      TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                  Text("• Latitude: $latitude"),
+                  Text("• Longitude: $longitude"),
+                  const SizedBox(height: 12),
+                ],
+
+                /// IMAGES
                 if (images.isNotEmpty) ...[
                   const Text("Images:",
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                      style:
+                      TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 6),
                   SizedBox(
                     height: 120,
@@ -164,9 +186,11 @@ class ItemExpansionCard extends StatelessWidget {
                   const SizedBox(height: 15),
                 ],
 
+                /// RENTAL PERIODS
                 if (rental.isNotEmpty) ...[
                   const Text("Rental Periods:",
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                      style:
+                      TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -180,6 +204,27 @@ class ItemExpansionCard extends StatelessWidget {
                       ),
                     ).toList(),
                   ),
+                  const SizedBox(height: 12),
+                ],
+
+                /// RATINGS & REVIEWS (only for approved items)
+                if (data["status"] == "approved") ...[
+                  const Divider(),
+                  const Text("Rating:",
+                      style:
+                      TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                  Text("⭐ ${rating.toStringAsFixed(1)} / 5.0"),
+                  const SizedBox(height: 10),
+
+                  const Text("Reviews:",
+                      style:
+                      TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                  if (reviews.isEmpty)
+                    const Text("No reviews yet."),
+                  ...reviews.map((r) => Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text("• ${r["review"]} (⭐ ${r["rating"]})"),
+                  )),
                 ],
 
                 const SizedBox(height: 10),
@@ -192,6 +237,11 @@ class ItemExpansionCard extends StatelessWidget {
   }
 }
 
+/// ---------------------------------------------------------------------------
+/// TABS
+/// ---------------------------------------------------------------------------
+
+/// ---------- PENDING ----------
 class PendingItemsTab extends StatelessWidget {
   const PendingItemsTab({super.key});
 
@@ -259,6 +309,7 @@ class PendingItemsTab extends StatelessWidget {
   }
 }
 
+/// ---------- REJECTED ----------
 class RejectedItemsTab extends StatelessWidget {
   const RejectedItemsTab({super.key});
 
@@ -292,6 +343,7 @@ class RejectedItemsTab extends StatelessWidget {
   }
 }
 
+/// ---------- APPROVED ----------
 class ApprovedItemsTab extends StatelessWidget {
   const ApprovedItemsTab({super.key});
 
@@ -307,11 +359,13 @@ class ApprovedItemsTab extends StatelessWidget {
           return const Center(child: CircularProgressIndicator());
 
         final docs = snapshot.data!.docs;
-        if (docs.isEmpty) return const Center(child: Text("No approved items"));
+        if (docs.isEmpty)
+          return const Center(child: Text("No approved items"));
 
         return ListView(
           children: docs.map((doc) {
             final data = doc.data() as Map<String, dynamic>;
+
             return ItemExpansionCard(
               data: data,
               itemId: doc.id,

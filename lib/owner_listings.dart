@@ -14,7 +14,7 @@ class OwnerItemsPage extends StatefulWidget {
 class _OwnerItemsPageState extends State<OwnerItemsPage> {
   int selectedTab = 0;
 
-  String get userId => FirebaseAuth.instance.currentUser!.uid;
+  String get ownerUid => FirebaseAuth.instance.currentUser!.uid;
 
   @override
   Widget build(BuildContext context) {
@@ -46,6 +46,7 @@ class _OwnerItemsPageState extends State<OwnerItemsPage> {
     );
   }
 
+  // HEADER --------------------------------------------------------
   Widget _buildHeader(Size size, bool isSmall) {
     return ClipPath(
       clipper: SideCurveClipper(),
@@ -69,7 +70,7 @@ class _OwnerItemsPageState extends State<OwnerItemsPage> {
           children: [
             const SizedBox(width: 30),
             Text(
-              "My Items",
+              selectedTab == 0 ? "My Items" : "Requests",
               style: TextStyle(
                 fontSize: isSmall ? 20 : 22,
                 fontWeight: FontWeight.w600,
@@ -77,17 +78,12 @@ class _OwnerItemsPageState extends State<OwnerItemsPage> {
               ),
             ),
             IconButton(
-              icon: Icon(
-                Icons.add,
-                color: Colors.white,
-                size: isSmall ? 24 : 28,
-              ),
+              icon: Icon(Icons.add,
+                  color: Colors.white, size: isSmall ? 24 : 28),
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (_) => const AddItemPage(item: null),
-                  ),
+                  MaterialPageRoute(builder: (_) => const AddItemPage()),
                 );
               },
             ),
@@ -97,6 +93,7 @@ class _OwnerItemsPageState extends State<OwnerItemsPage> {
     );
   }
 
+  // TABS ------------------------------
   Widget _buildTab(String text, int index, double screenWidth) {
     bool active = selectedTab == index;
     bool isSmall = screenWidth < 380;
@@ -110,9 +107,7 @@ class _OwnerItemsPageState extends State<OwnerItemsPage> {
         ),
         decoration: BoxDecoration(
           border: Border.all(
-            color: active ? const Color(0xFF8A005D) : Colors.black,
-            width: 1.2,
-          ),
+              color: active ? const Color(0xFF8A005D) : Colors.black, width: 1.2),
           borderRadius: BorderRadius.circular(25),
           color: active ? Colors.white : Colors.transparent,
         ),
@@ -137,27 +132,25 @@ class _OwnerItemsPageState extends State<OwnerItemsPage> {
     }
   }
 
+  // MY ITEMS TAB ---------------------------------------------------
   Widget _buildMyItems() {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection("items")
-          .where("ownerId", isEqualTo: userId)
+          .where("ownerId", isEqualTo: ownerUid)
           .snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+        final docs = snapshot.data!.docs;
+        if (docs.isEmpty) {
           return const Center(
-            child: Text(
-              "You haven't listed any items yet.",
-              style: TextStyle(color: Colors.grey),
-            ),
+            child: Text("You haven't listed any items yet.",
+                style: TextStyle(color: Colors.grey)),
           );
         }
-
-        final docs = snapshot.data!.docs;
 
         return ListView(
           padding: const EdgeInsets.all(16),
@@ -170,62 +163,176 @@ class _OwnerItemsPageState extends State<OwnerItemsPage> {
     );
   }
 
+  // REQUESTS TAB ---------------------------------------------------
   Widget _buildIncomingRequests() {
-    return const Center(
-      child: Text(
-        "Requests feature coming later.",
-        style: TextStyle(color: Colors.grey),
-      ),
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection("rentalRequests")
+          .where("itemOwnerUid", isEqualTo: ownerUid)
+          .orderBy("createdAt", descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final docs = snapshot.data!.docs;
+        if (docs.isEmpty) {
+          return const Center(
+            child: Text("No requests yet.", style: TextStyle(color: Colors.grey)),
+          );
+        }
+
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: docs.map((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            return _buildRequestCard(doc.id, data);
+          }).toList(),
+        );
+      },
     );
   }
 
-  Widget _buildItemCard(Map<String, dynamic> data) {
-    final images = List<String>.from(data["images"] ?? []);
-    final rental = Map<String, dynamic>.from(data["rentalPeriods"] ?? {});
+  // REQUEST CARD ---------------------------------------------------
+  Widget _buildRequestCard(String requestId, Map<String, dynamic> data) {
+    final status = data["status"] ?? "pending";
+    final itemTitle = data["itemTitle"] ?? "Unknown Item";
+    final renterId = data["customerUid"] ?? "Unknown User";
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 3,
       child: ExpansionTile(
         tilePadding: const EdgeInsets.all(12),
-        title: Text(
-          data["name"] ?? "No name",
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        subtitle: Text("${data["category"]} → ${data["subCategory"]}"),
+        title: Text(itemTitle, style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text("Status: $status"),
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Text("Renter: $renterId", style: const TextStyle(fontSize: 14)),
+                const SizedBox(height: 8),
+                Text("Rental Type: ${data["rentalType"]}"),
+                Text("Quantity: ${data["rentalQuantity"]}"),
+                Text("Start: ${data["startDate"]}"),
+                Text("End: ${data["endDate"]}"),
+                if (data["pickupTime"] != null)
+                  Text("Pickup: ${data["pickupTime"]}"),
+                Text("Total Price: JOD ${data["totalPrice"]}"),
+                const SizedBox(height: 20),
 
+                if (status == "pending") _buildAcceptRejectButtons(requestId),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ACCEPT / REJECT BUTTONS -----------------------------------------
+  Widget _buildAcceptRejectButtons(String requestId) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green, foregroundColor: Colors.white),
+          onPressed: () {
+            FirebaseFirestore.instance
+                .collection("rentalRequests")
+                .doc(requestId)
+                .update({"status": "accepted"});
+          },
+          child: const Text("Accept"),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red, foregroundColor: Colors.white),
+          onPressed: () {
+            FirebaseFirestore.instance
+                .collection("rentalRequests")
+                .doc(requestId)
+                .update({"status": "rejected"});
+          },
+          child: const Text("Reject"),
+        ),
+      ],
+    );
+  }
+
+  // ITEM CARD -------------------------------------------------------
+  Widget _buildItemCard(Map<String, dynamic> data) {
+    final images = List<String>.from(data["images"] ?? []);
+    final rental = Map<String, dynamic>.from(data["rentalPeriods"] ?? {});
+
+    final latitude = data["latitude"];
+    final longitude = data["longitude"];
+
+    final avgRating = data["averageRating"] ?? 0.0;
+    final ratingCount = data["ratingCount"] ?? 0;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 3,
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.all(12),
+        title: Text(data["name"] ?? "No name",
+            style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text("${data["category"]} → ${data["subCategory"]}"),
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Text("Description: ${data["description"] ?? ""}"),
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
+
+                const Text("Location:",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                Text(
+                    (latitude != null && longitude != null)
+                        ? "Lat: $latitude\nLng: $longitude"
+                        : "No location set",
+                    style: const TextStyle(fontSize: 14)),
+                const SizedBox(height: 12),
+
+                const Text("Ratings:",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                Text(
+                  ratingCount == 0
+                      ? "No ratings yet"
+                      : "⭐ $avgRating ($ratingCount reviews)",
+                  style: const TextStyle(fontSize: 14),
+                ),
+                const SizedBox(height: 15),
 
                 if (images.isNotEmpty) ...[
                   const Text("Images:",
-                      style:
-                      TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   SizedBox(
                     height: 110,
                     child: ListView(
                       scrollDirection: Axis.horizontal,
-                      children: images
-                          .map((url) => Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.network(
-                            url,
-                            height: 110,
-                            width: 110,
-                            fit: BoxFit.cover,
+                      children: images.map((url) {
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(
+                              url,
+                              height: 110,
+                              width: 110,
+                              fit: BoxFit.cover,
+                            ),
                           ),
-                        ),
-                      ))
-                          .toList(),
+                        );
+                      }).toList(),
                     ),
                   ),
                   const SizedBox(height: 15),
@@ -233,14 +340,12 @@ class _OwnerItemsPageState extends State<OwnerItemsPage> {
 
                 if (rental.isNotEmpty) ...[
                   const Text("Rental Periods:",
-                      style:
-                      TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 6),
                   ...rental.entries.map(
-                        (entry) => Text(
-                      "• ${entry.key}: JOD ${entry.value}",
-                      style: const TextStyle(fontSize: 14),
-                    ),
+                        (entry) =>
+                        Text("• ${entry.key}: JOD ${entry.value}",
+                            style: const TextStyle(fontSize: 14)),
                   ),
                 ],
 
@@ -254,6 +359,7 @@ class _OwnerItemsPageState extends State<OwnerItemsPage> {
   }
 }
 
+// CLIPPER ---------------------------------------------------------
 class SideCurveClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {

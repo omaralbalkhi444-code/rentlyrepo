@@ -3,13 +3,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'EquipmentItem.dart';
+import 'package:p2/pick_location_page.dart';
 import 'package:p2/services/storage_service.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class AddItemPage extends StatefulWidget {
-  const AddItemPage({super.key, this.item});
+  const AddItemPage({super.key, this.existingItem});
 
-  final EquipmentItem? item;
+  final Map<String, dynamic>? existingItem;
 
   @override
   _AddItemPageState createState() => _AddItemPageState();
@@ -23,12 +24,16 @@ class _AddItemPageState extends State<AddItemPage> {
   String? selectedCategory;
   String? selectedSubCategory;
 
-  final Map<String, String> selectedRentalPeriods = {};
+  double? latitude;
+  double? longitude;
+
+  Map<String, dynamic> rentalPeriods = {};
   String? newRentalPeriod;
 
   List<File> pickedImages = [];
+  List<String> existingImageUrls = [];
 
-  final List<String> categories = [
+  final categories = [
     "Electronics",
     "Computers & Mobiles",
     "Video Games",
@@ -38,62 +43,54 @@ class _AddItemPageState extends State<AddItemPage> {
     "Fashion & Clothing",
   ];
 
-  final Map<String, List<String>> subCategories = {
+  final subCategories = {
     "Electronics": ["Cameras & Photography", "Audio & Video"],
     "Computers & Mobiles": [
       "Mobiles",
       "Laptops",
       "Printers",
       "Projectors",
-      "Servers",
+      "Servers"
     ],
     "Video Games": ["Gaming Devices"],
-    "Sports": [
-      "Bicycle",
-      "Books",
-      "Skates & Scooters",
-      "Camping",
-    ],
+    "Sports": ["Bicycle", "Books", "Skates & Scooters", "Camping"],
     "Tools & Devices": [
       "Maintenance Tools",
       "Medical Devices",
       "Cleaning Equipment"
     ],
-    "Home & Garden": [
-      "Garden Equipment",
-      "Home Supplies",
-    ],
-    "Fashion & Clothing": [
-      "Men",
-      "Women",
-      "Customs",
-      "Baby Supplies",
-    ],
+    "Home & Garden": ["Garden Equipment", "Home Supplies"],
+    "Fashion & Clothing": ["Men", "Women", "Customs", "Baby Supplies"],
   };
 
-  final List<String> availableRentalPeriods = [
-    'Hourly',
-    'Daily',
-    'Weekly',
-    'Monthly',
-    'Yearly',
+  final availableRentalPeriods = [
+    "Hourly",
+    "Daily",
+    "Weekly",
+    "Monthly",
+    "Yearly"
   ];
 
-  Future<void> pickImages() async {
-    final List<XFile>? files = await ImagePicker().pickMultiImage(
-      maxWidth: 1200,
-      maxHeight: 1200,
-      imageQuality: 85,
-    );
+  @override
+  void initState() {
+    super.initState();
 
-    if (files != null) {
+    if (widget.existingItem != null) {
+      final data = widget.existingItem!;
+      nameController.text = data["name"] ?? "";
+      descController.text = data["description"] ?? "";
+      selectedCategory = data["category"];
+      selectedSubCategory = data["subCategory"];
+      rentalPeriods = Map<String, dynamic>.from(data["rentalPeriods"] ?? {});
+      existingImageUrls = List<String>.from(data["images"] ?? []);
+    }
+  }
+
+  Future<void> pickImages() async {
+    final images = await ImagePicker().pickMultiImage(imageQuality: 85);
+    if (images != null) {
       setState(() {
-        int remaining = 5 - pickedImages.length;
-        if (remaining > 0) {
-          pickedImages.addAll(
-            files.take(remaining).map((f) => File(f.path)).toList(),
-          );
-        }
+        pickedImages.addAll(images.map((i) => File(i.path)));
       });
     }
   }
@@ -102,78 +99,89 @@ class _AddItemPageState extends State<AddItemPage> {
     setState(() => pickedImages.removeAt(index));
   }
 
-  void removeRentalPeriod(String period) {
-    setState(() => selectedRentalPeriods.remove(period));
+  void removeExistingImage(String url) {
+    setState(() => existingImageUrls.remove(url));
   }
 
-  void addNewRentalPeriod() {
+  void addRentalPeriod() {
     if (newRentalPeriod == null || priceController.text.isEmpty) {
-      showError("Please select a period and enter price");
+      showError("Please select a rental period and enter a price.");
       return;
     }
 
-    final price = double.tryParse(priceController.text);
-    if (price == null || price <= 0) {
-      showError("Invalid price");
-      return;
-    }
-
-    if (selectedRentalPeriods.containsKey(newRentalPeriod)) {
-      showError("$newRentalPeriod already added");
-      return;
-    }
-
-    setState(() {
-      selectedRentalPeriods[newRentalPeriod!] = priceController.text;
-      newRentalPeriod = null;
-      priceController.clear();
-    });
+    rentalPeriods[newRentalPeriod!] = priceController.text;
+    newRentalPeriod = null;
+    priceController.clear();
+    setState(() {});
   }
 
-  Future<void> addItem() async {
+  Future<void> pickLocation() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const PickLocationPage()),
+    );
+
+    if (result != null && result is LatLng) {
+      setState(() {
+        latitude = result.latitude;
+        longitude = result.longitude;
+      });
+    }
+  }
+
+  Future<void> saveItem() async {
     if (nameController.text.isEmpty) return showError("Enter item name");
     if (selectedCategory == null) return showError("Select category");
     if (selectedSubCategory == null) return showError("Select sub category");
-    if (pickedImages.isEmpty) return showError("Add at least one image");
-    if (selectedRentalPeriods.isEmpty) return showError("Add rental periods");
+    if (rentalPeriods.isEmpty) return showError("Add rental periods");
 
     try {
       final ownerId = FirebaseAuth.instance.currentUser!.uid;
-      final itemRef =
-      FirebaseFirestore.instance.collection("pending_items").doc();
-      String itemId = itemRef.id;
 
-      List<String> downloadUrls = [];
+      final isEditing = widget.existingItem != null;
+
+      final docRef = isEditing
+          ? FirebaseFirestore.instance
+          .collection("pending_items")
+          .doc(widget.existingItem!["itemId"])
+          : FirebaseFirestore.instance.collection("pending_items").doc();
+
+      final itemId = docRef.id;
+
+      List<String> uploadedUrls = [];
       for (int i = 0; i < pickedImages.length; i++) {
-        String url = await StorageService.uploadItemImage(
+        final url = await StorageService.uploadItemImage(
           ownerId,
           itemId,
           pickedImages[i],
           "photo_$i.jpg",
         );
-        downloadUrls.add(url);
+        uploadedUrls.add(url);
       }
 
-      await itemRef.set({
+      final allImages = [...existingImageUrls, ...uploadedUrls];
+
+      await docRef.set({
         "itemId": itemId,
         "ownerId": ownerId,
         "name": nameController.text.trim(),
         "description": descController.text.trim(),
         "category": selectedCategory,
         "subCategory": selectedSubCategory,
-        "images": downloadUrls,
-        "rentalPeriods": selectedRentalPeriods,
-        "createdAt": FieldValue.serverTimestamp(),
+        "images": allImages,
+        "rentalPeriods": rentalPeriods,
         "status": "pending",
+        "latitude": latitude,
+        "longitude": longitude,
+        "createdAt": FieldValue.serverTimestamp(),
       });
 
-      showSuccess("Item submitted for approval");
+      showSuccess(isEditing ? "Item updated" : "Item submitted for approval");
 
-      Future.delayed(const Duration(seconds: 1), () {
-        Navigator.pop(context);
-      });
+      Navigator.pop(context);
+
     } catch (e) {
-      showError("Upload error: $e");
+      showError("Error: $e");
     }
   }
 
@@ -191,89 +199,65 @@ class _AddItemPageState extends State<AddItemPage> {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final bool smallScreen = screenWidth < 360;
+    final smallScreen = MediaQuery.of(context).size.width < 360;
 
     return Scaffold(
       body: Column(
         children: [
-          Container(
-            width: double.infinity,
-            padding: EdgeInsets.only(
-              top: MediaQuery.of(context).padding.top + 16,
-              bottom: 20,
-              left: 20,
-              right: 20,
-            ),
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF1F0F46), Color(0xFF8A005D)],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-            ),
-            child: Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed: () => Navigator.pop(context),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Text(
-                    widget.item == null ? "Add New Item" : "Edit Item",
-                    style: TextStyle(
-                      fontSize: smallScreen ? 20 : 22,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
+          buildHeader(smallScreen),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
                   buildPhotoSection(),
-
                   const SizedBox(height: 16),
-
                   buildBasicInfoSection(),
-
                   const SizedBox(height: 16),
-
                   buildRentalPeriodSection(),
-
-                  const SizedBox(height: 24),
-
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: addItem,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF8A005D),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: Text(
-                        widget.item == null ? "Submit Item" : "Update Item",
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
+                  buildLocationSection(),
+                  const SizedBox(height: 25),
+                  buildSubmitButton(),
                 ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget buildHeader(bool smallScreen) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.only(
+        top: MediaQuery.of(context).padding.top + 16,
+        bottom: 20,
+        left: 20,
+        right: 20,
+      ),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF1F0F46), Color(0xFF8A005D)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.pop(context),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              widget.existingItem == null ? "Add New Item" : "Edit Item",
+              style: TextStyle(
+                fontSize: smallScreen ? 20 : 22,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
               ),
             ),
           ),
@@ -285,7 +269,7 @@ class _AddItemPageState extends State<AddItemPage> {
   Widget buildPhotoSection() {
     return card(
       title: "Photos",
-      icon: Icons.photo_library,
+      icon: Icons.photo,
       child: Column(
         children: [
           InkWell(
@@ -296,48 +280,54 @@ class _AddItemPageState extends State<AddItemPage> {
                 border: Border.all(color: const Color(0xFF8A005D)),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Center(
-                child: Text("Add Photos"),
-              ),
+              child: const Center(child: Text("Add Photos")),
             ),
           ),
-          if (pickedImages.isNotEmpty) ...[
+
+          if (existingImageUrls.isNotEmpty) ...[
             const SizedBox(height: 12),
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: pickedImages.length,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                crossAxisSpacing: 8,
-                mainAxisSpacing: 8,
-              ),
-              itemBuilder: (_, index) {
+            Wrap(
+              spacing: 8,
+              children: existingImageUrls.map((url) {
                 return Stack(
                   children: [
                     ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: Image.file(
-                        pickedImages[index],
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                      ),
+                      child: Image.network(url, width: 90, height: 90, fit: BoxFit.cover),
                     ),
                     Positioned(
                       top: 4,
                       right: 4,
                       child: GestureDetector(
-                        onTap: () => removeImage(index),
+                        onTap: () => removeExistingImage(url),
                         child: const CircleAvatar(
                           radius: 12,
                           backgroundColor: Colors.red,
                           child: Icon(Icons.close, size: 14, color: Colors.white),
                         ),
                       ),
-                    )
+                    ),
                   ],
                 );
-              },
+              }).toList(),
+            ),
+          ],
+
+          if (pickedImages.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              children: pickedImages.map((file) {
+                return Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child:
+                      Image.file(file, width: 90, height: 90, fit: BoxFit.cover),
+                    ),
+                  ],
+                );
+              }).toList(),
             ),
           ]
         ],
@@ -352,23 +342,19 @@ class _AddItemPageState extends State<AddItemPage> {
       child: Column(
         children: [
           textField(nameController, "Item Name *"),
-
           const SizedBox(height: 12),
-
           textField(descController, "Description", maxLines: 3),
-
           const SizedBox(height: 12),
 
           DropdownButtonFormField<String>(
             value: selectedCategory,
             decoration: dropdownDecoration("Category *"),
-            items: categories
-                .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                .toList(),
+            items:
+            categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
             onChanged: (val) {
               setState(() {
                 selectedCategory = val;
-                selectedSubCategory = null; // reset subcategory
+                selectedSubCategory = null;
               });
             },
           ),
@@ -400,46 +386,83 @@ class _AddItemPageState extends State<AddItemPage> {
             value: newRentalPeriod,
             decoration: dropdownDecoration("Select Rental Period"),
             items: availableRentalPeriods
-                .where((p) => !selectedRentalPeriods.containsKey(p))
-                .map((p) => DropdownMenuItem(value: p, child: Text(p)))
+                .where((rp) => !rentalPeriods.containsKey(rp))
+                .map((rp) => DropdownMenuItem(value: rp, child: Text(rp)))
                 .toList(),
             onChanged: (val) => setState(() => newRentalPeriod = val),
           ),
 
           const SizedBox(height: 10),
-
           textField(priceController, "Price (JD)", keyboard: TextInputType.number),
+          const SizedBox(height: 10),
+
+          ElevatedButton.icon(
+            onPressed: addRentalPeriod,
+            icon: const Icon(Icons.add),
+            label: const Text("Add Period"),
+            style: ElevatedButton.styleFrom(backgroundColor: Color(0xFF8A005D)),
+          ),
 
           const SizedBox(height: 10),
 
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: addNewRentalPeriod,
-              icon: const Icon(Icons.add),
-              label: const Text("Add Rental Period"),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF8A005D),
-              ),
-            ),
-          ),
-
-          if (selectedRentalPeriods.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Column(
-              children: selectedRentalPeriods.entries.map((e) {
-                return ListTile(
-                  title: Text("Per ${e.key}"),
-                  subtitle: Text("JD ${e.value}"),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    onPressed: () => removeRentalPeriod(e.key),
-                  ),
-                );
-              }).toList(),
-            ),
-          ],
+          Column(
+            children: rentalPeriods.entries.map((e) {
+              return ListTile(
+                title: Text("${e.key}"),
+                subtitle: Text("JD ${e.value}"),
+                trailing: IconButton(
+                  icon: const Icon(Icons.delete, color: Colors.red),
+                  onPressed: () {
+                    setState(() => rentalPeriods.remove(e.key));
+                  },
+                ),
+              );
+            }).toList(),
+          )
         ],
+      ),
+    );
+  }
+
+  Widget buildLocationSection() {
+    return card(
+      title: "Location",
+      icon: Icons.location_on,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            latitude == null || longitude == null
+                ? "No location selected"
+                : "Lat: $latitude\nLng: $longitude",
+            style: const TextStyle(fontSize: 14),
+          ),
+          const SizedBox(height: 10),
+
+          ElevatedButton(
+            onPressed: pickLocation,
+            style: ElevatedButton.styleFrom(backgroundColor: Color(0xFF8A005D)),
+            child: const Text("Pick Location"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget buildSubmitButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 50,
+      child: ElevatedButton(
+        onPressed: saveItem,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF8A005D),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        child: Text(
+          widget.existingItem == null ? "Submit Item" : "Update Item",
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        ),
       ),
     );
   }
@@ -448,18 +471,11 @@ class _AddItemPageState extends State<AddItemPage> {
     return InputDecoration(
       labelText: label,
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-      focusedBorder: const OutlineInputBorder(
-        borderSide: BorderSide(color: Color(0xFF8A005D), width: 2),
-      ),
     );
   }
 
-  Widget textField(
-      TextEditingController controller,
-      String label, {
-        int maxLines = 1,
-        TextInputType keyboard = TextInputType.text,
-      }) {
+  Widget textField(TextEditingController controller, String label,
+      {int maxLines = 1, TextInputType keyboard = TextInputType.text}) {
     return TextField(
       controller: controller,
       maxLines: maxLines,
@@ -467,17 +483,14 @@ class _AddItemPageState extends State<AddItemPage> {
       decoration: InputDecoration(
         labelText: label,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-        focusedBorder: const OutlineInputBorder(
-          borderSide: BorderSide(color: Color(0xFF8A005D), width: 2),
-        ),
       ),
     );
   }
 
   Widget card({required String title, required IconData icon, required Widget child}) {
     return Card(
-      elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 3,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -485,20 +498,17 @@ class _AddItemPageState extends State<AddItemPage> {
           children: [
             Row(
               children: [
-                Icon(icon, color: const Color(0xFF8A005D)),
-                const SizedBox(width: 8),
+                Icon(icon, color: Color(0xFF8A005D)),
+                SizedBox(width: 8),
                 Text(
                   title,
                   style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1F0F46),
-                  ),
-                ),
+                      fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1F0F46)),
+                )
               ],
             ),
-            const SizedBox(height: 12),
-            child
+            SizedBox(height: 12),
+            child,
           ],
         ),
       ),

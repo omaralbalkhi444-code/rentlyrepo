@@ -9,7 +9,7 @@ import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 const String kGoogleApiKey = "AIzaSyCnSc-MLAUUyP5kxdcJ7TVk1TyyL-Rqt7s";
 
 class MapScreen extends StatefulWidget {
-  final LatLng initialPosition;
+  final LatLng? initialPosition;
   const MapScreen({super.key, required this.initialPosition});
 
   @override
@@ -222,7 +222,8 @@ class _MapScreenState extends State<MapScreen> {
       );
     }
 
-    final LatLng initialCamPos = currentLocation ?? widget.initialPosition;
+    final LatLng initialCamPos =
+        currentLocation ?? widget.initialPosition ?? const LatLng(32.55, 35.85);
 
     return Scaffold(
       appBar: AppBar(

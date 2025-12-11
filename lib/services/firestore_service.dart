@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../models/rental_request.dart';
+
 class FirestoreService {
 
   static final functions =
@@ -22,40 +24,41 @@ class FirestoreService {
         .call(data);
   }
 
-  static Future<void> createRentalRequest({
-    required String itemId,
-    required String itemTitle,
-    required String itemOwnerUid,
-    required String rentalType,
-    required String startDate,
-    required String endDate,
-    String? startTime,
-    String? endTime,
-    required String pickupTime,
-    required double totalPrice,
-  }) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-
-    if (uid == null) {
-      throw Exception("User not logged in.");
-    }
-
-    await FirebaseFirestore.instance.collection("rentalRequests").add({
-      "itemId": itemId,
-      "itemTitle": itemTitle,
-      "itemOwnerUid": itemOwnerUid,
-      "customerUid": uid,
-
-      "rentalType": rentalType,
-      "startDate": startDate,
-      "endDate": endDate,
-      "startTime": startTime,
-      "endTime": endTime,
-      "pickupTime": pickupTime,
-      "totalPrice": totalPrice.toStringAsFixed(2),
-
-      "status": "pending",
-      "createdAt": FieldValue.serverTimestamp(),
-    });
+  static Future<void> createRentalRequest(Map<String, dynamic> data) async {
+    await FirebaseFunctions.instance
+        .httpsCallable("createRentalRequest")
+        .call(data);
   }
+
+  static Future<void> updateRentalRequestStatus(
+      Map<String, dynamic> data) async {
+    await FirebaseFunctions.instance
+        .httpsCallable("updateRentalRequestStatus")
+        .call(data);
+  }
+
+  static Stream<List<RentalRequest>> getRenterRequestsByStatuses(
+      String renterUid, List<String> statuses) {
+    return FirebaseFirestore.instance
+        .collection("rentalRequests")
+        .where("customerUid", isEqualTo: renterUid)
+        .where("status", whereIn: statuses)
+        .orderBy("createdAt", descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+        .map((doc) => RentalRequest.fromFirestore(doc.id, doc.data()))
+        .toList());
+  }
+
+  static Stream<List<RentalRequest>> getOwnerRequests(String ownerUid) {
+    return FirebaseFirestore.instance
+        .collection("rentalRequests")
+        .where("itemOwnerUid", isEqualTo: ownerUid)
+        .orderBy("createdAt", descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+        .map((doc) => RentalRequest.fromFirestore(doc.id, doc.data()))
+        .toList());
+  }
+
 }

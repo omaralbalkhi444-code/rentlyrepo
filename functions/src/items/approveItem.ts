@@ -17,10 +17,16 @@ export const approveItem = onCall(async (request) => {
 
   await itemsRef.set({
     ...data,
+
     status: "approved",
     approvedAt: Timestamp.now(),
+
+    // Add rating system ONLY when approved
+    rating: 0,
+    reviews: [],
   });
 
+  // Update pending item metadata
   await pendingRef.update({
     status: "approved",
     reviewedAt: Timestamp.now(),

@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
-import 'package:p2/ChatScreen.dart';
-import 'package:p2/fake_uid.dart';
-import 'Orders.dart';
-import 'EquipmentItem.dart';
-import 'Favourite.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-
+import 'package:p2/services/firestore_service.dart';
+import 'package:p2/user_manager.dart';
+import 'Item.dart';
+import 'FavouriteManager.dart';
+import 'Orders.dart';
+import 'ChatScreen.dart';
+import 'AllReviewsPage.dart';
+import 'package:p2/models/rental_request.dart';
 
 class EquipmentDetailPage extends StatefulWidget {
   static const routeName = '/product-details';
@@ -19,590 +20,111 @@ class EquipmentDetailPage extends StatefulWidget {
 }
 
 class _EquipmentDetailPageState extends State<EquipmentDetailPage> {
- 
-        String ownerNameFromDB = "Loading...";
-        bool isLoadingOwner = true;
+  /// IMAGE SLIDER INDEX
+  int currentPage = 0;
 
-        void fetchOwnerName(String ownerUid) async {
-          final ref = FirebaseDatabase.instance.ref("users/$ownerUid/name");
+  /// OWNER NAME
+  String ownerName = "Loading...";
 
-          final snapshot = await ref.get();
-          if (snapshot.exists) {
-            setState(() {
-              ownerNameFromDB = snapshot.value.toString();
-              isLoadingOwner = false;
-            });
-          } else {
-            setState(() {
-              ownerNameFromDB = "Owner";
-              isLoadingOwner = false;
-            });
-          }
-        }
-
-        @override
-        void initState() {
-          super.initState();
-
-          Future.delayed(const Duration(milliseconds: 200), () {
-            final equipment = ModalRoute.of(context)?.settings.arguments as EquipmentItem?;
-            if (equipment != null) {
-              fetchOwnerName(equipment.ownerUid);
-            }
-          });
-        }
- 
-  bool isFavoritePressed = false;
-  int _currentPage = 0;
-  
-  RentalType selectedRentalType = RentalType.hourly;
-
+  /// RENTAL SELECTION
+  String? selectedPeriod;
   DateTime? startDate;
-  DateTime? endDate;
+  DateTime? endDate; // <-- now automatically calculated
   TimeOfDay? startTime;
   TimeOfDay? endTime;
+  int count = 1;
   String? pickupTime;
-  
-  int numberOfDays = 1; 
-  int numberOfWeeks = 1; 
-  int numberOfMonths = 1; 
-  int numberOfYears = 1;
 
-  bool isLiked = false;
-  int likesCount = 0;
+  /// REVIEWS PREVIEW
+  List<Map<String, dynamic>> topReviews = [];
+  double userRating = 0;
 
-  double userRating = 0.0;
-  final TextEditingController reviewController = TextEditingController();
-  List<String> reviews = [];
-
-  Future<void> _selectDate(BuildContext context, bool isStart) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime.now(),
-      lastDate: DateTime(2030),
-    );
-    if (picked != null) {
-      setState(() {
-        if (isStart) {
-          startDate = picked;
-   
-          if (selectedRentalType == RentalType.hourly) {
-            endDate = picked;
-          }
-        
-          _updateEndDateFromPeriod();
-        } else {
-          if (startDate == null || picked.isBefore(startDate!)) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('End date must be after start date'),
-                duration: Duration(seconds: 2),
-              ),
-            );
-            return;
-          }
-          endDate = picked;
-          _autoAdjustRentalType();
-        }
-      });
-    }
+  @override
+  void initState() {
+    super.initState();
   }
 
-  Future<void> _selectTime(BuildContext context, bool isStart) async {
-    final TimeOfDay? picked = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.now(),
-    );
-    if (picked != null) {
-      setState(() {
-        if (isStart) {
-          startTime = picked;
-        } else {
-          endTime = picked;
-         
-          if (selectedRentalType == RentalType.hourly && 
-              startTime != null && 
-              endTime != null &&
-              startDate == endDate) {
-            final startDateTime = TimeOfDay(hour: startTime!.hour, minute: startTime!.minute);
-            final endDateTime = TimeOfDay(hour: endTime!.hour, minute: endTime!.minute);
-            
-            final startMinutes = startDateTime.hour * 60 + startDateTime.minute;
-            final endMinutes = endDateTime.hour * 60 + endDateTime.minute;
-            
-            if (endMinutes <= startMinutes) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('End time must be after start time'),
-                  duration: Duration(seconds: 2),
-                ),
-              );
-              return;
-            }
-          }
-          _autoAdjustRentalType();
-        }
-      });
-    }
-  }
-
-  void _updateEndDateFromPeriod() {
-    if (startDate != null && selectedRentalType != RentalType.hourly) {
-      setState(() {
-        Duration duration = Duration();
-        
-        switch (selectedRentalType) {
-          case RentalType.daily:
-            duration = Duration(days: numberOfDays);
-            break;
-          case RentalType.weekly:
-            duration = Duration(days: numberOfWeeks * 7);
-            break;
-          case RentalType.monthly:
-            duration = Duration(days: numberOfMonths * 30);
-            break;
-          case RentalType.yearly:
-            duration = Duration(days: numberOfYears * 365);
-            break;
-          case RentalType.hourly:
-           
-            break;
-        }
-        
-        endDate = startDate!.add(duration);
-        _autoAdjustRentalType();
-      });
-    }
-  }
-
-  void _clearAllSelections() {
+  /// LOAD OWNER NAME FROM REALTIME DATABASE
+  Future<void> loadOwnerName(String uid) async {
+    final snap = await FirebaseDatabase.instance.ref("users/$uid/name").get();
     setState(() {
-      startDate = null;
+      ownerName = snap.exists ? snap.value.toString() : "Owner";
+    });
+  }
+
+  /// FETCH TOP 3 REVIEWS
+  Future<void> loadTopReviews(String itemId) async {
+    final snap = await FirebaseDatabase.instance
+        .ref("reviews/$itemId")
+        .limitToFirst(3)
+        .get();
+
+    if (snap.exists) {
+      List<Map<String, dynamic>> list = [];
+      for (var child in snap.children) {
+        list.add({
+          "rating": child.child("rating").value ?? 0,
+          "review": child.child("review").value ?? "",
+          "userId": child.child("userId").value ?? "",
+        });
+      }
+
+      setState(() {
+        topReviews = list;
+      });
+    }
+  }
+
+  /// ---------------------------------------------------------
+  /// AUTO CALCULATE END DATE (Daily/Weekly/Monthly/Yearly)
+  /// ---------------------------------------------------------
+  void calculateEndDate() {
+    if (startDate == null || selectedPeriod == null) {
       endDate = null;
-      startTime = null;
-      endTime = null;
-      pickupTime = null;
-      numberOfDays = 1;
-      numberOfWeeks = 1;
-      numberOfMonths = 1;
-      numberOfYears = 1;
-    });
+      return;
+    }
+
+    int daysToAdd = 0;
+    final p = selectedPeriod!.toLowerCase();
+
+    if (p == "daily") daysToAdd = count;
+    else if (p == "weekly") daysToAdd = count * 7;
+    else if (p == "monthly") daysToAdd = count * 30;
+    else if (p == "yearly") daysToAdd = count * 365;
+
+    endDate = startDate!.add(Duration(days: daysToAdd));
   }
 
-  void _clearTimeSelections() {
-    setState(() {
-      startTime = null;
-      endTime = null;
-    });
-  }
+  /// ---------------------------------------------------------
+  /// PRICE CALCULATOR
+  /// ---------------------------------------------------------
+  double computeTotalPrice(Item item) {
+    if (selectedPeriod == null) return 0;
 
-  void _autoAdjustRentalType() {
-    if (startDate == null || endDate == null) return;
-    
-    double totalHours = _calculateTotalHours();
-    
-    if (!_isValidRentalTypeForDuration()) {
-      RentalType requiredType = RentalType.hourly;
-      String typeName = "Hourly";
-      
-      if (totalHours > 24 * 365) {
-        requiredType = RentalType.yearly;
-        typeName = "Yearly";
-      } else if (totalHours > 24 * 30) {
-        requiredType = RentalType.monthly;
-        typeName = "Monthly";
-      } else if (totalHours > 24 * 6) {
-        requiredType = RentalType.weekly;
-        typeName = "Weekly";
-      } else if (totalHours > 24) {
-        requiredType = RentalType.daily;
-        typeName = "Daily";
+    double base = double.tryParse("${item.rentalPeriods[selectedPeriod]}") ?? 0;
+
+    if (selectedPeriod!.toLowerCase() == "hourly") {
+      if (startTime != null && endTime != null) {
+        int minutes = (endTime!.hour * 60 + endTime!.minute) -
+            (startTime!.hour * 60 + startTime!.minute);
+        if (minutes > 0) {
+          return base * (minutes / 60).ceil();
+        }
       }
-      
-      if (selectedRentalType != requiredType) {
-        _updateRentalType(requiredType, typeName);
-      }
+      return base;
     }
-  }
 
-  void _updateRentalType(RentalType newType, String typeName) {
-    if (selectedRentalType != newType) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Rental type changed to $typeName based on selected duration'),
-          duration: const Duration(seconds: 3),
-        ),
-      );
-      
-      setState(() {
-        selectedRentalType = newType;
-        
-        if (newType != RentalType.hourly) {
-          startTime = null;
-          endTime = null;
-      
-          numberOfDays = 1;
-          numberOfWeeks = 1;
-          numberOfMonths = 1;
-          numberOfYears = 1;
-          if (startDate != null) {
-            _updateEndDateFromPeriod();
-          }
-        } else {
-    
-          if (startDate != null) {
-            endDate = startDate;
-          }
-        }
-      });
-    }
-  }
-
-  double _calculateTotalHours() {
-    if (startDate == null || endDate == null) return 0.0;
-    
-    DateTime startDateTime;
-    DateTime endDateTime;
-    
-    if (selectedRentalType == RentalType.hourly && startTime != null && endTime != null) {
-      startDateTime = DateTime(
-        startDate!.year,
-        startDate!.month,
-        startDate!.day,
-        startTime!.hour,
-        startTime!.minute,
-      );
-      
-      endDateTime = DateTime(
-        endDate!.year,
-        endDate!.month,
-        endDate!.day,
-        endTime!.hour,
-        endTime!.minute,
-      );
-    } else {
-      startDateTime = DateTime(startDate!.year, startDate!.month, startDate!.day);
-      endDateTime = DateTime(endDate!.year, endDate!.month, endDate!.day, 23, 59);
-    }
-    
-    if (endDateTime.isBefore(startDateTime)) return 0.0;
-    
-    return endDateTime.difference(startDateTime).inHours.toDouble();
-  }
-
-  bool _isValidRentalTypeForDuration() {
-    if (startDate == null || endDate == null) return true;
-    
-    double totalHours = _calculateTotalHours();
-    
-    switch (selectedRentalType) {
-      case RentalType.hourly:
-        return totalHours <= 24 && totalHours > 0;
-      case RentalType.daily:
-        return totalHours <= 24 * 6;
-      case RentalType.weekly:
-        return totalHours <= 24 * 30;
-      case RentalType.monthly:
-        return totalHours <= 24 * 365;
-      case RentalType.yearly:
-        return totalHours > 24 * 365; 
-    }
-  }
-
-  String _getRentalTypeErrorMessage() {
-    if (!_isValidRentalTypeForDuration()) {
-      double totalHours = _calculateTotalHours();
-      
-      if (selectedRentalType == RentalType.hourly) {
-        if (totalHours <= 0) {
-          return "End time must be after start time";
-        } else if (totalHours > 24) {
-          return "Hourly rental is not allowed for more than 24 hours. Please select Daily rental.";
-        }
-      } else if (selectedRentalType == RentalType.daily && totalHours > 24 * 6) {
-        return "Daily rental is not allowed for more than 6 days. Please select Weekly rental.";
-      } else if (selectedRentalType == RentalType.weekly && totalHours > 24 * 30) {
-        return "Weekly rental is not allowed for more than 30 days. Please select Monthly rental.";
-      } else if (selectedRentalType == RentalType.monthly && totalHours > 24 * 365) {
-        return "Monthly rental is not allowed for more than 365 days. Please select Yearly rental.";
-      }
-    }
-    return "";
-  }
-
-  double calculateTotalPrice(EquipmentItem equipment) {
-    if (!_isValidRentalTypeForDuration()) {
-      return 0.0;
-    }
-    
-    final basePrice = equipment.getPriceForRentalType(selectedRentalType);
-    
-    bool hasAllRequiredData = false;
-    
-    switch (selectedRentalType) {
-      case RentalType.hourly:
-        hasAllRequiredData = startDate != null && 
-                            startTime != null && 
-                            endDate != null && 
-                            endTime != null;
-        break;
-      case RentalType.daily:
-      case RentalType.weekly:
-      case RentalType.monthly:
-      case RentalType.yearly:
-        hasAllRequiredData = startDate != null && endDate != null;
-        break;
-    }
-    
-    if (!hasAllRequiredData) {
-      return 0.0;
-    }
-    
-    switch (selectedRentalType) {
-      case RentalType.hourly:
-        DateTime startDateTime = DateTime(
-          startDate!.year,
-          startDate!.month,
-          startDate!.day,
-          startTime!.hour,
-          startTime!.minute,
-        );
-        
-        DateTime endDateTime = DateTime(
-          endDate!.year,
-          endDate!.month,
-          endDate!.day,
-          endTime!.hour,
-          endTime!.minute,
-        );
-        
-        if (endDateTime.isBefore(startDateTime)) {
-          return 0.0;
-        }
-        
-        final duration = endDateTime.difference(startDateTime);
-        final totalMinutes = duration.inMinutes;
-        
-        if (totalMinutes <= 0) {
-          return 0.0;
-        }
-        
-        if (totalMinutes <= 60) {
-          return basePrice;
-        }
-        
-        final totalHours = (totalMinutes / 60).ceilToDouble();
-        return basePrice * totalHours;
-        
-      case RentalType.daily:
-        if (endDate!.isBefore(startDate!)) {
-          return 0.0;
-        }
-        
-        final difference = endDate!.difference(startDate!);
-        final days = difference.inDays;
-        
-        if (days == 0) {
-          return basePrice;
-        }
-        
-        final totalDays = difference.inHours % 24 > 0 ? days + 1 : days;
-        return basePrice * totalDays;
-        
-      case RentalType.weekly:
-        if (endDate!.isBefore(startDate!)) {
-          return 0.0;
-        }
-        
-        final difference = endDate!.difference(startDate!);
-        final days = difference.inDays;
-        
-        final weeks = (days / 7).ceilToDouble();
-        return basePrice * weeks;
-        
-      case RentalType.monthly:
-        if (endDate!.isBefore(startDate!)) {
-          return 0.0;
-        }
-        
-        final difference = endDate!.difference(startDate!);
-        final days = difference.inDays;
-        
-        final months = (days / 30).ceilToDouble();
-        return basePrice * months;
-        
-      case RentalType.yearly:
-        if (endDate!.isBefore(startDate!)) {
-          return 0.0;
-        }
-        
-        final difference = endDate!.difference(startDate!);
-        final days = difference.inDays;
-        
-        final years = (days / 365).ceilToDouble();
-        return basePrice * years;
-    }
-  }
-
-  void _showReviewDialog() {
-    String newReview = '';
-    
-    showDialog(
-      context: context,
-      builder: (context) {
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.all(20),
-          child: Container(
-            width: MediaQuery.of(context).size.width * 0.9,
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: StatefulBuilder(
-              builder: (context, setStateSB) {
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text(
-                      "Write a Review",
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    
-                
-                    TextField(
-                      maxLines: 4,
-                      decoration: const InputDecoration(
-                        hintText: "Write your review here...",
-                        border: OutlineInputBorder(),
-                      ),
-                      onChanged: (value) {
-                        newReview = value;
-                      },
-                    ),
-                    
-                    const SizedBox(height: 20),
-                    
-            
-                    if (reviews.isNotEmpty) ...[
-                      const Text(
-                        "Previous Reviews:",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Container(
-                        height: 100,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[100],
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.grey[300]!),
-                        ),
-                        child: ListView.builder(
-                          padding: const EdgeInsets.all(8),
-                          itemCount: reviews.length,
-                          itemBuilder: (context, index) {
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 4),
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(4),
-                                border: Border.all(color: Colors.grey[200]!),
-                              ),
-                              child: Text(
-                                reviews[index],
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                    ],
-                    
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        Expanded(
-                          child: TextButton(
-                            onPressed: () => Navigator.pop(context),
-                            style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                            ),
-                            child: const Text(
-                              "Cancel",
-                              style: TextStyle(fontSize: 16),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () {
-                              if (newReview.trim().isNotEmpty) {
-                                setState(() {
-                                  reviews.add(newReview);
-                                });
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text("Review added successfully"),
-                                    duration: Duration(seconds: 2),
-                                  ),
-                                );
-                              }
-                              Navigator.pop(context);
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF8A005D),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                            ),
-                            child: const Text(
-                              "Submit",
-                              style: TextStyle(fontSize: 16, color: Colors.white),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                );
-              },
-            ),
-          ),
-        );
-      },
-    );
+    return base * count;
   }
 
   @override
   Widget build(BuildContext context) {
-    final equipment =
-        ModalRoute.of(context)?.settings.arguments as EquipmentItem?;
+    final item = ModalRoute.of(context)!.settings.arguments as Item;
 
-    if (equipment == null) {
-      return const Scaffold(
-        body: Center(
-          child: Text(
-            "No product data provided!",
-            style: TextStyle(fontSize: 20, color: Colors.red),
-          ),
-        ),
-      );
-    }
+    loadOwnerName(item.ownerId);
+    loadTopReviews(item.id);
 
-    isFavoritePressed = FavouriteManager.favouriteItems.contains(equipment);
-    final totalPrice = calculateTotalPrice(equipment);
-    final errorMessage = _getRentalTypeErrorMessage();
-    final isValidRentalType = _isValidRentalTypeForDuration();
+    final periods = item.rentalPeriods.keys.toList();
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -610,1240 +132,657 @@ class _EquipmentDetailPageState extends State<EquipmentDetailPage> {
         child: SingleChildScrollView(
           child: Column(
             children: [
-              Container(
-                height: 280,
-                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: Stack(
-                  children: [
-                    PageView.builder(
-                      onPageChanged: (index) {
-                        setState(() => _currentPage = index);
-                      },
-                      itemCount: 3,
-                      itemBuilder: (context, index) {
-                        return Container(
-                          color: Colors.white,
-                          alignment: Alignment.center,
-                          child: Icon(
-                            equipment.icon,
-                            size: 140,
-                            color: const Color(0xFF8A005D),
-                          ),
-                        );
-                      },
-                    ),
-                    Positioned(
-                      top: 20,
-                      left: 20,
-                      child: GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: const BoxDecoration(
-                            color: Colors.white70,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.arrow_back,
-                              color: Colors.black87, size: 26),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      top: 20,
-                      right: 20,
-                      child: GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            if (isFavoritePressed) {
-                              isFavoritePressed = false;
-                              FavouriteManager.remove(equipment);
-                            } else {
-                              isFavoritePressed = true;
-                              FavouriteManager.add(equipment);
-                            }
-                          });
-
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                isFavoritePressed
-                                    ? '${equipment.title} added to Favorites'
-                                    : '${equipment.title} removed from Favorites',
-                              ),
-                              duration: const Duration(seconds: 1),
-                            ),
-                          );
-                        },
-                        child: Icon(
-                          Icons.favorite,
-                          color: isFavoritePressed ? Colors.red : Colors.grey,
-                          size: 30,
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      bottom: 10,
-                      left: 0,
-                      right: 0,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: List.generate(3, (index) {
-                          return Container(
-                            width: 8,
-                            height: 8,
-                            margin: const EdgeInsets.symmetric(horizontal: 4),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: _currentPage == index
-                                  ? const Color(0xFF8A005D)
-                                  : Colors.grey,
-                            ),
-                          );
-                        }),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            equipment.title,
-                            style: const TextStyle(
-                              fontSize: 26,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black87
-                            ),
-                          ),
-                        ),
- //  hide ? icon 
-if (LoginUID.uid != equipment.ownerUid)
-  IconButton(
-    onPressed: () {
-      showDialog(
-        context: context,
-        builder: (context) {
-          return AlertDialog(
-            title: const Text("Chat with Owner"),
-            content: const Text("Do you want to chat with the owner?"),
-            actions: [
-              TextButton(
-                child: const Text("No"),
-                onPressed: () => Navigator.pop(context),
-              ),
-              ElevatedButton(
-                child: const Text("Yes"),
-                onPressed: () {
-                  Navigator.pop(context);
-
-                  // فتح شاشة الشات فقط بدون إنشاء chat مسبقاً
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ChatScreen(
-                        personName: equipment.ownerName,
-                        personUid: equipment.ownerUid,
-                      ),
-                    ),
-                  );
-                },
-              ),
+              buildTopHeader(context, "Item Details"),
+              buildImageSlider(item.images),
+              buildHeader(item),
+              buildOwnerSection(),
+              buildDescription(item),
+              buildRatingSection(item),
+              buildRentalChips(periods, item),
+              buildRentalSelector(item),
+              buildEndDateDisplay(),
+              buildTotalPrice(item),
+              buildPickupSelector(),
+              buildRentButton(item),
+              buildReviewsSection(item),
+              buildMapSection(item),
+              const SizedBox(height: 40),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget buildTopHeader(BuildContext context, String title) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF1F0F46), Color(0xFF8A005D)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+      ),
+      child: Row(
+        children: [
+          /// BACK BUTTON
+          IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.pop(context),
+          ),
+
+          /// CENTERED TITLE
+          Expanded(
+            child: Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ),
+
+          /// EMPTY BOX TO BALANCE THE ROW (same width as back button)
+          const SizedBox(width: 40),
+        ],
+      ),
+    );
+  }
+
+  // IMAGE SLIDER ----------------------------------------------------
+  Widget buildImageSlider(List<String> images) {
+    return Container(
+      height: 260,
+      margin: const EdgeInsets.all(12),
+      child: PageView.builder(
+        onPageChanged: (i) => setState(() => currentPage = i),
+        itemCount: images.isEmpty ? 1 : images.length,
+        itemBuilder: (_, i) {
+          if (images.isEmpty) {
+            return Container(
+              color: Colors.grey[200],
+              child: const Icon(Icons.image_not_supported, size: 90),
+            );
+          }
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Image.network(images[i], fit: BoxFit.cover),
           );
         },
-      );
-    },
-    icon: const Icon(
-      Icons.help_outline,
-      color: Color(0xFF8A005D),
-      size: 28,
-    ),
-    tooltip: "Ask the owner",
-  ),
-
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-
-                
-                    Row(
-                      children: [
-                    
-                        GestureDetector(
-                          onTap: () {
-                            showDialog(
-                              context: context,
-                              builder: (context) {
-                                double tempRating = userRating;
-                                return Dialog(
-                                  backgroundColor: Colors.transparent,
-                                  insetPadding: const EdgeInsets.all(20),
-                                  child: Container(
-                                    width: MediaQuery.of(context).size.width * 0.9,
-                                    padding: const EdgeInsets.all(20),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                    child: StatefulBuilder(
-                                      builder: (context, setStateSB) {
-                                        return Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            const Text(
-                                              "Rate this product",
-                                              style: TextStyle(
-                                                fontSize: 20,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 20),
-                                            Row(
-                                              mainAxisAlignment: MainAxisAlignment.center,
-                                              children: List.generate(5, (index) {
-                                                return IconButton(
-                                                  onPressed: () {
-                                                    setStateSB(() {
-                                                      tempRating = (index + 1).toDouble();
-                                                    });
-                                                  },
-                                                  icon: Icon(
-                                                    Icons.star,
-                                                    color: (index + 1) <= tempRating
-                                                        ? Colors.amber
-                                                        : Colors.grey,
-                                                    size: 40,
-                                                  ),
-                                                );
-                                              }),
-                                            ),
-                                            const SizedBox(height: 20),
-                                            Row(
-                                              mainAxisAlignment: MainAxisAlignment.spaceAround,
-                                              children: [
-                                                Expanded(
-                                                  child: TextButton(
-                                                    onPressed: () => Navigator.pop(context),
-                                                    style: TextButton.styleFrom(
-                                                      padding: const EdgeInsets.symmetric(vertical: 12),
-                                                    ),
-                                                    child: const Text(
-                                                      "Cancel",
-                                                      style: TextStyle(fontSize: 16),
-                                                    ),
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 10),
-                                                Expanded(
-                                                  child: ElevatedButton(
-                                                    onPressed: () {
-                                                      setState(() {
-                                                        userRating = tempRating;
-                                                      });
-                                                      Navigator.pop(context);
-                                                    },
-                                                    style: ElevatedButton.styleFrom(
-                                                      backgroundColor: const Color(0xFF8A005D),
-                                                      padding: const EdgeInsets.symmetric(vertical: 12),
-                                                    ),
-                                                    child: const Text(
-                                                      "OK",
-                                                      style: TextStyle(fontSize: 16, color: Colors.white),
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ],
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                );
-                              },
-                            );
-                          },
-                          child: Row(
-                            children: [
-                              Icon(Icons.star,
-                                  color: Colors.amber[700], size: 22),
-                              const SizedBox(width: 4),
-                              Text("$userRating",
-                                  style: const TextStyle(fontSize: 16)),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 20),
-
-                    
-                        GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              isLiked = !isLiked;
-                              likesCount = isLiked ? 1 : 0;
-                            });
-                          },
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.thumb_up,
-                                color: isLiked ? Colors.green : Colors.grey,
-                                size: 22,
-                              ),
-                              const SizedBox(width: 4),
-                              Text("$likesCount",
-                                  style: const TextStyle(fontSize: 14)),
-                            ],
-                          ),
-                        ),
-                        
-                        const SizedBox(width: 20),
-                        
-              
-                        GestureDetector(
-                          onTap: _showReviewDialog,
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.reviews,
-                                color: Colors.blue,
-                                size: 22,
-                              ),
-                              const SizedBox(width: 4),
-                              Text("${reviews.length}",
-                                  style: const TextStyle(fontSize: 14)),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text(
-                              "Rental Period:",
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            if (startDate != null || startTime != null || endDate != null || endTime != null)
-                              TextButton(
-                                onPressed: _clearAllSelections,
-                                child: const Row(
-                                  children: [
-                                    Icon(Icons.clear, size: 16, color: Colors.red),
-                                    SizedBox(width: 4),
-                                    Text(
-                                      "Clear All",
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.red,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: [
-                              _buildRentalTypeChip("Hourly", RentalType.hourly, equipment),
-                              const SizedBox(width: 8),
-                              _buildRentalTypeChip("Daily", RentalType.daily, equipment),
-                              const SizedBox(width: 8),
-                              _buildRentalTypeChip("Weekly", RentalType.weekly, equipment),
-                              const SizedBox(width: 8),
-                              _buildRentalTypeChip("Monthly", RentalType.monthly, equipment),
-                              const SizedBox(width: 8),
-                              _buildRentalTypeChip("Yearly", RentalType.yearly, equipment),
-                            ],
-                          ),
-                        ),
-                        if (!isValidRentalType && errorMessage.isNotEmpty)
-                          Container(
-                            margin: const EdgeInsets.only(top: 8),
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.orange[50],
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.orange),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(Icons.warning, color: Colors.orange[800], size: 16),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    errorMessage,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.orange[800],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        const SizedBox(height: 12),
-                        
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[100],
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "Total: JOD ${totalPrice.toStringAsFixed(2)}",
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: totalPrice > 0 && isValidRentalType
-                                      ? const Color(0xFF8A005D) 
-                                      : Colors.grey,
-                                ),
-                              ),
-                              if (totalPrice == 0 && (startDate != null || startTime != null || endDate != null || endTime != null)) ...[
-                                const SizedBox(height: 4),
-                                Text(
-                                  _getIncompleteMessage(),
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.orange,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    
-                    const SizedBox(height: 20),
-
-                    Column(
-                      children: [
-                        if (selectedRentalType == RentalType.hourly)
-                          _buildDateButton(
-                            "Date",
-                            startDate == null
-                                ? "Select Date"
-                                : DateFormat('yyyy-MM-dd').format(startDate!),
-                            () => _selectDate(context, true),
-                            startDate != null,
-                            onClear: () => setState(() {
-                              startDate = null;
-                              endDate = null;
-                              startTime = null;
-                              endTime = null;
-                            }),
-                          )
-                        else
-                          _buildDateButton(
-                            "Start Date",
-                            startDate == null
-                                ? "Select Start Date"
-                                : DateFormat('yyyy-MM-dd').format(startDate!),
-                            () => _selectDate(context, true),
-                            startDate != null,
-                            onClear: () => setState(() {
-                              startDate = null;
-                              endDate = null;
-                              numberOfDays = 1;
-                              numberOfWeeks = 1;
-                              numberOfMonths = 1;
-                              numberOfYears = 1;
-                            }),
-                          ),
-                        
-                        const SizedBox(height: 10),
-                        
-                    
-                        if (selectedRentalType != RentalType.hourly) 
-                          _buildPeriodSelector(),
-                        
-                        if (selectedRentalType == RentalType.hourly) ...[
-                          const SizedBox(height: 10),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildTimeButton(
-                                  "Start Time",
-                                  startTime == null
-                                      ? "Select Start Time"
-                                      : startTime!.format(context),
-                                  () => _selectTime(context, true),
-                                  startTime != null,
-                                  onClear: () => setState(() => startTime = null),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: _buildTimeButton(
-                                  "End Time",
-                                  endTime == null
-                                      ? "Select End Time"
-                                      : endTime!.format(context),
-                                  () => _selectTime(context, false),
-                                  endTime != null,
-                                  onClear: () => setState(() => endTime = null),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                        
-                        const SizedBox(height: 10),
-                        
-                        _buildPickupTimeButton(),
-                        
-                        const SizedBox(height: 10),
-                       
-                        if (_hasSelectedPeriod())
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF8A005D).withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: const Color(0xFF8A005D)),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    const Icon(Icons.calendar_today, color: Color(0xFF8A005D)),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        _getRentalPeriodDescription(),
-                                        style: const TextStyle(
-                                          color: Color(0xFF8A005D),
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                if (startDate != null && endDate != null)
-                                  const SizedBox(height: 4),
-                                if (startDate != null && endDate != null)
-                                  Text(
-                                    selectedRentalType == RentalType.hourly
-                                        ? "Date: ${DateFormat('yyyy-MM-dd').format(startDate!)}"
-                                        : "From: ${DateFormat('yyyy-MM-dd').format(startDate!)} To: ${DateFormat('yyyy-MM-dd').format(endDate!)}",
-                                    style: const TextStyle(
-                                      color: Color(0xFF8A005D),
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                if (selectedRentalType != RentalType.hourly && startDate != null)
-                                  const SizedBox(height: 4),
-                                if (selectedRentalType != RentalType.hourly && startDate != null)
-                                  Text(
-                                    _getDurationDescription(),
-                                    style: const TextStyle(
-                                      color: Color(0xFF8A005D),
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                      ],
-                    ),
-                    
-                    const SizedBox(height: 20),
-
-                    ElevatedButton(
-                      onPressed: _isSelectionComplete() && pickupTime != null && isValidRentalType && totalPrice > 0 ? () {
-                        OrdersManager.addOrder(equipment);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content:
-                                Text('${equipment.title} added to Orders'),
-                            duration: const Duration(seconds: 1),
-                          ),
-                        );
-                        Future.delayed(
-                            const Duration(milliseconds: 300), () {
-                          Navigator.pushNamed(context, '/orders');
-                        });
-                      } : null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _isSelectionComplete() && pickupTime != null && isValidRentalType && totalPrice > 0
-                            ? const Color(0xFF8A005D) 
-                            : Colors.grey[400],
-                        minimumSize: const Size(double.infinity, 54),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                      ),
-                      child: Text(
-                        _isSelectionComplete() && pickupTime != null && isValidRentalType && totalPrice > 0
-                            ? "Rent Now (JOD ${totalPrice.toStringAsFixed(2)})" 
-                            : "Select all options to rent",
-                        style: TextStyle(
-                          fontSize: 18, 
-                          fontWeight: FontWeight.bold,
-                          color: _isSelectionComplete() && pickupTime != null && isValidRentalType && totalPrice > 0
-                              ? Colors.white 
-                              : Colors.grey[700],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    Container(
-                      height: 100,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[200],
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.grey[300]!),
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: GoogleMap(
-                        initialCameraPosition: CameraPosition(
-                          target: LatLng(
-                            equipment.latitude ?? 32.55,
-                            equipment.longitude ?? 35.85,
-                          ),
-                          zoom: 14,
-                        ),
-                        markers: {
-                          Marker(
-                            markerId: const MarkerId("itemLocation"),
-                            position: LatLng(
-                              equipment.latitude ?? 32.55,
-                              equipment.longitude ?? 35.85,
-                            ),
-                            infoWindow: const InfoWindow(
-                                title: "Equipment Location"),
-                            icon:
-                                BitmapDescriptor.defaultMarkerWithHue(
-                              BitmapDescriptor.hueRed,
-                            ),
-                          ),
-                        },
-                        myLocationEnabled: false,
-                        zoomControlsEnabled: true,
-                        myLocationButtonEnabled: false,
-                      ),
-                    ),
-                    const SizedBox(height: 40),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
 
-  Widget _buildDateButton(String title, String text, VoidCallback onPressed, bool isSelected, {VoidCallback? onClear}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 12,
-                color: Colors.grey,
-                fontWeight: FontWeight.bold,
-              ),
+  // HEADER -----------------------------------------------------------
+  Widget buildHeader(Item item) {
+    final isFav = FavouriteManager.isFavourite(item.id);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(item.name,
+                style:
+                const TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
+          ),
+
+          /// FAVOURITE
+          IconButton(
+            icon: Icon(Icons.favorite,
+                color: isFav ? Colors.red : Colors.grey, size: 30),
+            onPressed: () {
+              setState(() {
+                isFav
+                    ? FavouriteManager.remove(item.id)
+                    : FavouriteManager.add(item.id);
+              });
+            },
+          ),
+
+          /// CHAT WITH OWNER
+          if (item.ownerId != UserManager.uid!)
+            IconButton(
+              icon:
+              const Icon(Icons.chat, color: Color(0xFF8A005D), size: 28),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        ChatScreen(personUid: item.ownerId, personName: ownerName),
+                  ),
+                );
+              },
             ),
-            if (isSelected && onClear != null)
-              GestureDetector(
-                onTap: onClear,
-                child: const Icon(Icons.close, size: 16, color: Colors.red),
-              ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        ElevatedButton(
-          onPressed: onPressed,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: isSelected ? const Color(0xFF8A005D) : Colors.grey[200],
-            foregroundColor: isSelected ? Colors.white : Colors.grey[700],
-            minimumSize: const Size(double.infinity, 48),
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-          ),
-          child: Text(
-            text,
-            style: const TextStyle(fontSize: 14),
-            textAlign: TextAlign.center,
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  Widget _buildTimeButton(String title, String text, VoidCallback onPressed, bool isSelected, {VoidCallback? onClear}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 12,
-                color: Colors.grey,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            if (isSelected && onClear != null)
-              GestureDetector(
-                onTap: onClear,
-                child: const Icon(Icons.close, size: 16, color: Colors.red),
-              ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        ElevatedButton(
-          onPressed: onPressed,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: isSelected ? const Color(0xFF8A005D) : Colors.grey[200],
-            foregroundColor: isSelected ? Colors.white : Colors.grey[700],
-            minimumSize: const Size(double.infinity, 48),
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-          ),
-          child: Text(
-            text,
-            style: const TextStyle(fontSize: 14),
-            textAlign: TextAlign.center,
-          ),
-        ),
-      ],
+  // OWNER ------------------------------------------------------------
+  Widget buildOwnerSection() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        children: [
+          const Icon(Icons.person, color: Color(0xFF8A005D)),
+          const SizedBox(width: 8),
+          Text("Owner: $ownerName", style: const TextStyle(fontSize: 16)),
+        ],
+      ),
     );
   }
 
-  Widget _buildPeriodSelector() {
-    switch (selectedRentalType) {
-      case RentalType.daily:
-        return _buildDailySelector();
-      case RentalType.weekly:
-        return _buildWeeklySelector();
-      case RentalType.monthly:
-        return _buildMonthlySelector();
-      case RentalType.yearly:
-        return _buildYearlySelector();
-      case RentalType.hourly:
-        return Container();
+  // DESCRIPTION ------------------------------------------------------
+  Widget buildDescription(Item item) {
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Text(item.description,
+          style: const TextStyle(fontSize: 15, color: Colors.black87)),
+    );
+  }
+
+  // RATING -----------------------------------------------------------
+  Widget buildRatingSection(Item item) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+      child: Row(
+        children: [
+          Icon(Icons.star, color: Colors.amber[700], size: 22),
+          const SizedBox(width: 4),
+          Text("${item.averageRating.toStringAsFixed(1)} (${item.ratingCount})"),
+        ],
+      ),
+    );
+  }
+
+  // RENTAL CHIPS -----------------------------------------------------
+  Widget buildRentalChips(List<String> periods, Item item) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Wrap(
+        spacing: 8,
+        children: periods.map((p) {
+          return ChoiceChip(
+            label: Text("$p (JOD ${item.rentalPeriods[p]})"),
+            selected: selectedPeriod == p,
+            onSelected: (_) => setState(() {
+              selectedPeriod = p;
+              startDate = null;
+              endDate = null;
+              startTime = null;
+              endTime = null;
+              count = 1;
+            }),
+            selectedColor: const Color(0xFF8A005D),
+            labelStyle: TextStyle(
+              color: selectedPeriod == p ? Colors.white : Colors.black,
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  // RENTAL SELECTOR --------------------------------------------------
+  Widget buildRentalSelector(Item item) {
+    if (selectedPeriod == null) return const SizedBox.shrink();
+
+    final p = selectedPeriod!.toLowerCase();
+
+    // HOURLY
+    if (p == "hourly") return buildHourlySelector();
+
+    // DAILY/WEEKLY/MONTHLY/YEARLY
+    return buildDaySelector();
+  }
+
+  // HOURLY SELECTOR --------------------------------------------------
+  Widget buildHourlySelector() {
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          buildTimePicker("Start Time", startTime, (selected) {
+            setState(() => startTime = selected);
+          }),
+          const SizedBox(height: 12),
+          buildTimePicker("End Time", endTime, (selected) {
+            setState(() => endTime = selected);
+          }),
+        ],
+      ),
+    );
+  }
+
+  // DAY SELECTOR -----------------------------------------------------
+  Widget buildDaySelector() {
+    // Determine the label for quantity based on rental period
+    String unitLabel = "Days";
+    if (selectedPeriod != null) {
+      final p = selectedPeriod!.toLowerCase();
+      if (p == "weekly") unitLabel = "Weeks";
+      if (p == "monthly") unitLabel = "Months";
+      if (p == "yearly") unitLabel = "Years";
     }
-  }
 
-  Widget _buildDailySelector() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          "Number of Days",
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey,
-            fontWeight: FontWeight.bold,
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          buildDatePicker("Start Date", startDate, (selected) {
+            setState(() {
+              startDate = selected;
+              calculateEndDate();
+            });
+          }),
+
+          const SizedBox(height: 22),
+
+          // LABEL
+          const Text(
+            "Number of Units",
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
           ),
-        ),
-        const SizedBox(height: 4),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: Colors.grey[200],
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            children: [
-              IconButton(
-                onPressed: () {
-                  if (numberOfDays > 1) {
-                    setState(() {
-                      numberOfDays--;
-                      _updateEndDateFromPeriod();
-                    });
-                  }
-                },
-                icon: const Icon(Icons.remove, color: Color(0xFF8A005D)),
-              ),
-              Expanded(
-                child: Text(
-                  "$numberOfDays Day${numberOfDays > 1 ? 's' : ''}",
-                  textAlign: TextAlign.center,
+
+          const SizedBox(height: 10),
+
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // MINUS BUTTON
+                GestureDetector(
+                  onTap: () {
+                    if (count > 1) {
+                      setState(() {
+                        count--;
+                        calculateEndDate();
+                      });
+                    }
+                  },
+                  child: const Icon(Icons.remove, color: Color(0xFF8A005D), size: 26),
+                ),
+
+                // COUNT + LABEL (center)
+                Text(
+                  "$count $unitLabel",
                   style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
                     color: Color(0xFF8A005D),
                   ),
                 ),
+
+                // PLUS BUTTON
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      count++;
+                      calculateEndDate();
+                    });
+                  },
+                  child: const Icon(Icons.add, color: Color(0xFF8A005D), size: 26),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // DATE PICKER ------------------------------------------------------
+  Widget buildDatePicker(
+      String title, DateTime? value, Function(DateTime) onSelect) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start, // <-- Ensures left alignment
+      children: [
+
+        // LEFT-ALIGNED LABEL
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 4),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
               ),
-              IconButton(
-                onPressed: () {
-                  setState(() {
-                    numberOfDays++;
-                    _updateEndDateFromPeriod();
-                  });
-                },
-                icon: const Icon(Icons.add, color: Color(0xFF8A005D)),
-              ),
-            ],
+            ),
           ),
         ),
-        if (startDate != null && numberOfDays > 0)
-          const SizedBox(height: 8),
-        if (startDate != null && numberOfDays > 0)
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.green[50],
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              "End Date: ${DateFormat('yyyy-MM-dd').format(startDate!.add(Duration(days: numberOfDays)))}",
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.green[800],
-                fontWeight: FontWeight.bold,
+
+        // DATE PICK BUTTON
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: () async {
+              final pick = await showDatePicker(
+                context: context,
+                initialDate: DateTime.now(),
+                firstDate: DateTime.now(),
+                lastDate: DateTime(2030),
+              );
+              if (pick != null) onSelect(pick);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF8A005D),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
               ),
             ),
+            child: Text(
+              value == null
+                  ? "Select Date"
+                  : DateFormat("yyyy-MM-dd").format(value),
+              style: const TextStyle(fontSize: 15),
+            ),
           ),
+        ),
       ],
     );
   }
 
-  Widget _buildWeeklySelector() {
+  // TIME PICKER ------------------------------------------------------
+  Widget buildTimePicker(
+      String title, TimeOfDay? value, Function(TimeOfDay) onSelect) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          "Number of Weeks",
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: Colors.grey[200],
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            children: [
-              IconButton(
-                onPressed: () {
-                  if (numberOfWeeks > 1) {
-                    setState(() {
-                      numberOfWeeks--;
-                      _updateEndDateFromPeriod();
-                    });
-                  }
-                },
-                icon: const Icon(Icons.remove, color: Color(0xFF8A005D)),
-              ),
-              Expanded(
-                child: Text(
-                  "$numberOfWeeks Week${numberOfWeeks > 1 ? 's' : ''}",
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF8A005D),
-                  ),
-                ),
-              ),
-              IconButton(
-                onPressed: () {
-                  setState(() {
-                    numberOfWeeks++;
-                    _updateEndDateFromPeriod();
-                  });
-                },
-                icon: const Icon(Icons.add, color: Color(0xFF8A005D)),
-              ),
-            ],
-          ),
-        ),
-        if (startDate != null && numberOfWeeks > 0)
-          const SizedBox(height: 8),
-        if (startDate != null && numberOfWeeks > 0)
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.green[50],
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              "End Date: ${DateFormat('yyyy-MM-dd').format(startDate!.add(Duration(days: numberOfWeeks * 7)))}",
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.green[800],
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildMonthlySelector() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          "Number of Months",
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: Colors.grey[200],
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            children: [
-              IconButton(
-                onPressed: () {
-                  if (numberOfMonths > 1) {
-                    setState(() {
-                      numberOfMonths--;
-                      _updateEndDateFromPeriod();
-                    });
-                  }
-                },
-                icon: const Icon(Icons.remove, color: Color(0xFF8A005D)),
-              ),
-              Expanded(
-                child: Text(
-                  "$numberOfMonths Month${numberOfMonths > 1 ? 's' : ''}",
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF8A005D),
-                  ),
-                ),
-              ),
-              IconButton(
-                onPressed: () {
-                  setState(() {
-                    numberOfMonths++;
-                    _updateEndDateFromPeriod();
-                  });
-                },
-                icon: const Icon(Icons.add, color: Color(0xFF8A005D)),
-              ),
-            ],
-          ),
-        ),
-        if (startDate != null && numberOfMonths > 0)
-          const SizedBox(height: 8),
-        if (startDate != null && numberOfMonths > 0)
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.green[50],
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              "End Date: ${DateFormat('yyyy-MM-dd').format(startDate!.add(Duration(days: numberOfMonths * 30)))}",
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.green[800],
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildYearlySelector() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          "Number of Years",
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: Colors.grey[200],
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            children: [
-              IconButton(
-                onPressed: () {
-                  if (numberOfYears > 1) {
-                    setState(() {
-                      numberOfYears--;
-                      _updateEndDateFromPeriod();
-                    });
-                  }
-                },
-                icon: const Icon(Icons.remove, color: Color(0xFF8A005D)),
-              ),
-              Expanded(
-                child: Text(
-                  "$numberOfYears Year${numberOfYears > 1 ? 's' : ''}",
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF8A005D),
-                  ),
-                ),
-              ),
-              IconButton(
-                onPressed: () {
-                  setState(() {
-                    numberOfYears++;
-                    _updateEndDateFromPeriod();
-                  });
-                },
-                icon: const Icon(Icons.add, color: Color(0xFF8A005D)),
-              ),
-            ],
-          ),
-        ),
-        if (startDate != null && numberOfYears > 0)
-          const SizedBox(height: 8),
-        if (startDate != null && numberOfYears > 0)
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.green[50],
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              "End Date: ${DateFormat('yyyy-MM-dd').format(startDate!.add(Duration(days: numberOfYears * 365)))}",
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.green[800],
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildPickupTimeButton() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              "Pickup Time",
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            if (pickupTime != null)
-              GestureDetector(
-                onTap: () => setState(() => pickupTime = null),
-                child: const Icon(Icons.close, size: 16, color: Colors.red),
-              ),
-          ],
-        ),
-        const SizedBox(height: 4),
+        Text(title,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 6),
         ElevatedButton(
           onPressed: () async {
-            final TimeOfDay? picked = await showTimePicker(
-              context: context,
-              initialTime: TimeOfDay.now(),
-            );
-            if (picked != null) {
-              setState(() {
-                pickupTime = picked.format(context);
-              });
-            }
+            final pick =
+            await showTimePicker(context: context, initialTime: TimeOfDay.now());
+            if (pick != null) onSelect(pick);
           },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: pickupTime != null ? const Color(0xFF8A005D) : Colors.grey[200],
-            foregroundColor: pickupTime != null ? Colors.white : Colors.grey[700],
-            minimumSize: const Size(double.infinity, 48),
-          ),
-          child: Text(
-            pickupTime == null
-                ? "Select Pickup Time"
-                : "Pickup at $pickupTime",
-            style: const TextStyle(fontSize: 14),
-          ),
+          child: Text(value == null ? "Select Time" : value.format(context)),
         ),
       ],
     );
   }
 
-  Widget _buildRentalTypeChip(String label, RentalType type, EquipmentItem equipment) {
-    bool isSelected = selectedRentalType == type;
-    bool isValidForDuration = _isValidRentalTypeForDuration() || !_hasSelectedPeriod();
-    
-    return ChoiceChip(
-      label: Text("$label (JOD ${equipment.getPriceForRentalType(type).toStringAsFixed(2)})"),
-      selected: isSelected,
-      onSelected: (selected) {
-        if (selected) {
-          setState(() {
-            if (isSelected == false) {
-              if (selectedRentalType == RentalType.hourly && type != RentalType.hourly) {
-                _clearTimeSelections();
-        
-                numberOfDays = 1;
-                numberOfWeeks = 1;
-                numberOfMonths = 1;
-                numberOfYears = 1;
-                if (startDate != null) {
-                  _updateEndDateFromPeriod();
-                }
-              } else if (selectedRentalType != RentalType.hourly && type == RentalType.hourly) {
-                _clearAllSelections();
-              } else if (selectedRentalType != RentalType.hourly && type != RentalType.hourly) {
-      
-                numberOfDays = 1;
-                numberOfWeeks = 1;
-                numberOfMonths = 1;
-                numberOfYears = 1;
-                if (startDate != null) {
-                  _updateEndDateFromPeriod();
-                }
-              }
-            }
-            selectedRentalType = type;
-            
-        
-            if (type == RentalType.hourly && startDate != null) {
-              endDate = startDate;
-            }
-          });
-        }
-      },
-      selectedColor: const Color(0xFF8A005D),
-      backgroundColor: isValidForDuration ? null : Colors.grey[300],
-      disabledColor: Colors.grey[300],
-      labelStyle: TextStyle(
-        color: isSelected ? Colors.white : (isValidForDuration ? Colors.black : Colors.grey),
+  // END DATE DISPLAY -------------------------------------------------
+  Widget buildEndDateDisplay() {
+    if (endDate == null || selectedPeriod?.toLowerCase() == "hourly") {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+      child: Text(
+        "End Date: ${DateFormat('yyyy-MM-dd').format(endDate!)}",
+        style: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFF8A005D),
+        ),
       ),
     );
   }
-  
-  bool _isSelectionComplete() {
-    switch (selectedRentalType) {
-      case RentalType.hourly:
-        return startDate != null && startTime != null && endTime != null;
-      default:
-        return startDate != null && endDate != null;
-    }
-  }
-  
-  String _getIncompleteMessage() {
-    if (selectedRentalType == RentalType.hourly) {
-      if (startDate == null) return "Missing: Date";
-      if (startTime == null) return "Missing: Start Time";
-      if (endTime == null) return "Missing: End Time";
-    } else {
-      if (startDate == null) return "Missing: Start Date";
-      if (endDate == null) return "Missing: End Date";
-    }
-    return "";
-  }
-  
-  bool _hasSelectedPeriod() {
-    switch (selectedRentalType) {
-      case RentalType.hourly:
-        return startDate != null && startTime != null && endTime != null;
-      default:
-        return startDate != null && endDate != null;
-    }
-  }
-  
-  String _getRentalPeriodDescription() {
-    if (selectedRentalType == RentalType.hourly) {
-      if (startDate != null && startTime != null && endTime != null) {
-        final startDateTime = TimeOfDay(hour: startTime!.hour, minute: startTime!.minute);
-        final endDateTime = TimeOfDay(hour: endTime!.hour, minute: endTime!.minute);
-        
 
-        final startMinutes = startDateTime.hour * 60 + startDateTime.minute;
-        final endMinutes = endDateTime.hour * 60 + endDateTime.minute;
-        
-        if (endMinutes <= startMinutes) {
-          return "Invalid time selection";
-        }
-        
-        final totalMinutes = endMinutes - startMinutes;
-        final hours = totalMinutes ~/ 60;
-        final minutes = totalMinutes % 60;
-        
-        return "Rental period: $hours hour(s) ${minutes > 0 ? 'and $minutes minute(s)' : ''}";
-      }
-    } else {
-      if (startDate != null && endDate != null) {
-        final days = endDate!.difference(startDate!).inDays;
-        return "Rental period: $days day(s)";
-      }
-    }
-    return "";
+  // TOTAL PRICE ------------------------------------------------------
+  Widget buildTotalPrice(Item item) {
+    if (selectedPeriod == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Text(
+        "Total Price: JOD ${computeTotalPrice(item).toStringAsFixed(2)}",
+        style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF8A005D)),
+      ),
+    );
   }
-  
-  String _getDurationDescription() {
-    switch (selectedRentalType) {
-      case RentalType.daily:
-        return "Duration: $numberOfDays Day${numberOfDays > 1 ? 's' : ''}";
-      case RentalType.weekly:
-        return "Duration: $numberOfWeeks Week${numberOfWeeks > 1 ? 's' : ''}";
-      case RentalType.monthly:
-        return "Duration: $numberOfMonths Month${numberOfMonths > 1 ? 's' : ''}";
-      case RentalType.yearly:
-        return "Duration: $numberOfYears Year${numberOfYears > 1 ? 's' : ''}";
-      case RentalType.hourly:
-        return "";
+// PICKUP TIME ------------------------------------------------------
+  Widget buildPickupSelector() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(left: 4, bottom: 4),
+            child: Text(
+              "Pickup Time",
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+            ),
+          ),
+
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () async {
+                final pick = await showTimePicker(
+                    context: context, initialTime: TimeOfDay.now());
+                if (pick != null) setState(() => pickupTime = pick.format(context));
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF8A005D),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: Text(
+                pickupTime == null ? "Select Pickup Time" : pickupTime!,
+                style: const TextStyle(fontSize: 15),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // RENT BUTTON ------------------------------------------------------
+  Widget buildRentButton(Item item) {
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF8A005D),
+            minimumSize: const Size(double.infinity, 55)),
+        onPressed: () async {
+          if (selectedPeriod == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("Please select a rental period")),
+            );
+            return;
+          }
+
+          calculateEndDate(); // ensure it's updated
+
+          if (startDate == null || endDate == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("Please select a start date")),
+            );
+            return;
+          }
+
+          final data = {
+            "itemId": item.id,
+            "itemTitle": item.name,
+            "itemOwnerUid": item.ownerId,
+
+            "rentalType": selectedPeriod!,
+            "rentalQuantity": count,
+
+            "startDate": startDate!.toIso8601String(),
+            "endDate": endDate!.toIso8601String(),
+
+            "pickupTime": pickupTime,
+            "totalPrice": computeTotalPrice(item),
+
+            // Only hourly
+            "startTime": selectedPeriod == "Hourly" ? startTime?.format(context) : null,
+            "endTime": selectedPeriod == "Hourly" ? endTime?.format(context) : null,
+          };
+
+          try {
+            await FirestoreService.createRentalRequest(data);
+
+            if (!mounted) return;
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("Rental request submitted!")),
+            );
+
+            Navigator.pushNamed(context, "/orders");
+          } catch (e) {
+            ScaffoldMessenger.of(context)
+                .showSnackBar(SnackBar(content: Text("Error: $e")));
+          }
+        },
+        child: const Text("Rent Now",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+      ),
+    );
+  }
+// REVIEWS ----------------------------------------------------------
+  Widget buildReviewsSection(Item item) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start, // TITLE + NO REVIEWS + LINK LEFT
+        children: [
+
+          // Title
+          const Text(
+            "Reviews",
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+
+          const SizedBox(height: 10),
+
+          // If NO reviews → LEFT aligned
+          if (topReviews.isEmpty)
+            const Text(
+              "No reviews yet",
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.black54,
+              ),
+            )
+          else
+          // Reviews exist → Center the card(s)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.center, // CENTER CARDS
+              children: topReviews.map((rev) {
+                return Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(12),
+                  constraints: const BoxConstraints(maxWidth: 350), // CENTERED WIDTH
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.grey.shade300, width: 1),
+                    color: Colors.white,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.star, color: Colors.amber[700], size: 20),
+                          const SizedBox(width: 6),
+                          Text("${rev['rating']}"),
+                        ],
+                      ),
+
+                      const SizedBox(height: 6),
+
+                      Text(
+                        rev['review'],
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+
+          const SizedBox(height: 6),
+
+          // "Show All Reviews" → LEFT aligned
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => AllReviewsPage(itemId: item.id),
+                  ),
+                );
+              },
+              child: const Text(
+                "Show All Reviews →",
+                style: TextStyle(fontSize: 14),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // MAP --------------------------------------------------------------
+  Widget buildMapSection(Item item) {
+    if (item.latitude == null || item.longitude == null) {
+      return Container(
+        height: 150,
+        margin: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.grey[200],
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Center(
+            child: Text(
+              "📍 Location not provided",
+              style: TextStyle(fontSize: 16, color: Colors.black54),
+            )),
+      );
     }
+
+    return Container(
+      height: 200,
+      margin: const EdgeInsets.all(20),
+      child: GoogleMap(
+        initialCameraPosition: CameraPosition(
+            target: LatLng(item.latitude!, item.longitude!), zoom: 14),
+        markers: {
+          Marker(
+            markerId: const MarkerId("itemLoc"),
+            position: LatLng(item.latitude!, item.longitude!),
+          )
+        },
+      ),
+    );
   }
 }
-

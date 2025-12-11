@@ -1,5 +1,5 @@
 /*import 'package:flutter/material.dart';
-import 'EquipmentItem.dart';
+import 'Item.dart';
 
 final List<EquipmentItem> fakeDataList = [
   EquipmentItem(

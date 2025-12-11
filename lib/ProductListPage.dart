@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'Equipment_Detail_Page.dart';
+import 'Item.dart';
 
 class ProductListPage extends StatefulWidget {
   const ProductListPage({super.key});
@@ -146,14 +147,33 @@ class ProductTile extends StatelessWidget {
     final rental = Map<String, dynamic>.from(itemData["rentalPeriods"] ?? {});
 
     return GestureDetector(
-      onTap: () => Navigator.pushNamed(
-        context,
-        EquipmentDetailPage.routeName,
-        arguments: {
-          "itemId": itemId,
-          "data": itemData,
-        },
-      ),
+      onTap: () {
+        final item = Item(
+          id: itemId,
+          name: itemData["name"] ?? "",
+          description: itemData["description"] ?? "",
+          category: itemData["category"] ?? "",
+          subCategory: itemData["subCategory"] ?? "",
+          ownerId: itemData["ownerId"] ?? "",
+          images: List<String>.from(itemData["images"] ?? []),
+          rentalPeriods: Map<String, dynamic>.from(itemData["rentalPeriods"] ?? {}),
+
+          latitude: (itemData["latitude"] as num?)?.toDouble(),
+          longitude: (itemData["longitude"] as num?)?.toDouble(),
+
+          averageRating: (itemData["averageRating"] ?? 0).toDouble(),
+          ratingCount: itemData["ratingCount"] ?? 0,
+
+          status: itemData["status"] ?? "approved",
+          submittedAt: null,
+        );
+
+        Navigator.pushNamed(
+          context,
+          EquipmentDetailPage.routeName,
+          arguments: item,
+        );
+      },
       child: Card(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
