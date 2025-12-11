@@ -203,30 +203,72 @@ class _OwnerItemsPageState extends State<OwnerItemsPage> {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 3,
-      child: ExpansionTile(
-        tilePadding: const EdgeInsets.all(12),
-        title: Text(itemTitle, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text("Status: $status"),
+      child: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text("Renter: $renterId", style: const TextStyle(fontSize: 14)),
-                const SizedBox(height: 8),
-                Text("Rental Type: ${data["rentalType"]}"),
-                Text("Quantity: ${data["rentalQuantity"]}"),
-                Text("Start: ${data["startDate"]}"),
-                Text("End: ${data["endDate"]}"),
-                if (data["pickupTime"] != null)
-                  Text("Pickup: ${data["pickupTime"]}"),
-                Text("Total Price: JOD ${data["totalPrice"]}"),
-                const SizedBox(height: 20),
+          // ---------------- TOP ROW WITH ACTION ICONS ----------------
+          Row(
+            children: [
+              // Expanded ListTile takes most of the row
+              Expanded(
+                child: ListTile(
+                  title: Text(
+                    itemTitle,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 18),
+                  ),
+                  subtitle: Text("Status: $status"),
+                ),
+              ),
 
-                if (status == "pending") _buildAcceptRejectButtons(requestId),
+              // Small ACCEPT / REJECT icons (only if pending)
+              if (status == "pending") ...[
+                IconButton(
+                  icon: const Icon(Icons.check_circle, color: Colors.green),
+                  iconSize: 26,
+                  onPressed: () {
+                    FirebaseFirestore.instance
+                        .collection("rentalRequests")
+                        .doc(requestId)
+                        .update({"status": "accepted"});
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.cancel, color: Colors.red),
+                  iconSize: 26,
+                  onPressed: () {
+                    FirebaseFirestore.instance
+                        .collection("rentalRequests")
+                        .doc(requestId)
+                        .update({"status": "rejected"});
+                  },
+                ),
               ],
-            ),
+
+              const SizedBox(width: 6),
+            ],
+          ),
+
+          // ------------------- EXPANSION SECTION ---------------------
+          ExpansionTile(
+            title: const Text("View Details"),
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("Renter: $renterId"),
+                    Text("Rental Type: ${data["rentalType"]}"),
+                    Text("Quantity: ${data["rentalQuantity"]}"),
+                    Text("Start: ${data["startDate"]}"),
+                    Text("End: ${data["endDate"]}"),
+                    if (data["pickupTime"] != null)
+                      Text("Pickup: ${data["pickupTime"]}"),
+                    Text("Total Price: JOD ${data["totalPrice"]}"),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),

@@ -22,8 +22,14 @@ class _OrdersPageState extends State<OrdersPage> {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final screenHeight = MediaQuery.of(context).size.height;
+    final screenWidth = MediaQuery
+        .of(context)
+        .size
+        .width;
+    final screenHeight = MediaQuery
+        .of(context)
+        .size
+        .height;
     final isSmallScreen = screenWidth < 360;
     final renterUid = UserManager.uid!;
 
@@ -79,7 +85,8 @@ class _OrdersPageState extends State<OrdersPage> {
               ),
             ),
             IconButton(
-              icon: Icon(Icons.payment, color: Colors.white, size: small ? 24 : 28),
+              icon: Icon(
+                  Icons.payment, color: Colors.white, size: small ? 24 : 28),
               onPressed: () {
                 Navigator.push(context,
                     MaterialPageRoute(builder: (_) => const WalletHomePage()));
@@ -210,50 +217,98 @@ class _OrdersPageState extends State<OrdersPage> {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      child: ExpansionTile(
-        leading: const Icon(Icons.shopping_bag, color: Color(0xFF8A005D)),
-        title: Text(req.itemTitle,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-        subtitle: Text("Status: ${req.status}"),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
 
-        children: [
-          ListTile(
-            title: const Text("Rental Details",
-                style: TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            // --------- TITLE ROW (NO ICON HERE) ---------
+            Row(
               children: [
-                Text("Rental Type: ${req.rentalType}"),
-                Text("Quantity: ${req.rentalQuantity}"),
-                Text("Start Date: ${req.startDate}"),
-                Text("End Date: ${req.endDate}"),
-                if (req.startTime != null) Text("Start Time: ${req.startTime}"),
-                if (req.endTime != null) Text("End Time: ${req.endTime}"),
-                Text("Pickup Time: ${req.pickupTime}"),
-                Text("Total Price: JOD ${req.totalPrice}"),
+                const Icon(Icons.shopping_bag, color: Color(0xFF8A005D)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    req.itemTitle,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
               ],
             ),
-          ),
 
-          const SizedBox(height: 10),
+            const SizedBox(height: 4),
 
-          // QR Button
-          Padding(
-            padding: const EdgeInsets.only(bottom: 15),
-            child: IconButton(
-              icon: const Icon(Icons.qr_code, size: 30, color: Color(0xFF1F0F46)),
-              onPressed: () {
-                String qrData =
-                    "Item: ${req.itemTitle}\nTotal Price: ${req.totalPrice}\nRental Type: ${req.rentalType}";
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => QrPage(qrData: qrData)),
-                );
-              },
+            // --------- STATUS ROW WITH QR ICON ON RIGHT ---------
+            Row(
+              children: [
+                Text(
+                  "Status: ${req.status}",
+                  style: const TextStyle(fontSize: 14),
+                ),
+
+                const Spacer(),
+
+                if (req.status == "accepted")
+                  IconButton(
+                    icon: const Icon(
+                        Icons.qr_code, size: 28, color: Color(0xFF1F0F46)),
+                    onPressed: () {
+                      String qrData =
+                          "Item: ${req.itemTitle}\nTotal Price: ${req
+                          .totalPrice}\nRental Type: ${req.rentalType}";
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => QrPage(qrData: qrData),
+                        ),
+                      );
+                    },
+                  ),
+              ],
             ),
-          )
-        ],
+
+            const SizedBox(height: 8),
+
+            // --------- EXPANSION TILE ---------
+            ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              title: const Text("View Details"),
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: ListTile(
+                    title: const Text(
+                      "Rental Details",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("Rental Type: ${req.rentalType}"),
+                        Text("Quantity: ${req.rentalQuantity}"),
+                        Text("Start Date: ${req.startDate}"),
+                        Text("End Date: ${req.endDate}"),
+                        if (req.startTime != null)
+                          Text("Start Time: ${req.startTime}"),
+                        if (req.endTime != null)
+                          Text("End Time: ${req.endTime}"),
+                        Text("Pickup Time: ${req.pickupTime}"),
+                        Text("Total Price: JOD ${req.totalPrice}"),
+                      ],
+                    ),
+                  ),
+                )
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
