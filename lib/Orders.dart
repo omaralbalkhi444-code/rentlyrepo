@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:p2/models/rental_request.dart';
 import 'package:p2/services/firestore_service.dart';
 import 'package:p2/QrPage.dart';
-import 'PaymentPage.dart';
+import 'package:p2/WalletPage.dart';
 import 'app_locale.dart';
 import 'bottom_nav.dart';
 import 'package:p2/user_manager.dart';
@@ -82,7 +82,7 @@ class _OrdersPageState extends State<OrdersPage> {
               icon: Icon(Icons.payment, color: Colors.white, size: small ? 24 : 28),
               onPressed: () {
                 Navigator.push(context,
-                    MaterialPageRoute(builder: (_) => const PaymentPage()));
+                    MaterialPageRoute(builder: (_) => const WalletHomePage()));
               },
             ),
           ],

@@ -5,7 +5,6 @@ import 'Item.dart';
 import 'sub_category_page.dart';
 
 import 'Categories_Page.dart';
-import 'PaymentPage.dart';
 import 'Rently_Logo.dart';
 import 'Setting.dart';
 import 'Orders.dart';
@@ -20,9 +19,6 @@ import 'Favourite.dart';
 import 'firebase_options.dart';
 import 'MapPage.dart';
 import 'AddItemPage .dart';
-import 'Payment2.dart';
-import 'Last Activity.dart';
-import 'withdraw_page.dart';
 
 import 'package:firebase_core/firebase_core.dart';
 
@@ -74,11 +70,11 @@ class MyApp extends StatelessWidget {
             '/Code': (context) => const EnterTheCode(),
             '/orders': (context) => const OrdersPage(),
             '/setting': (context) => const SettingPage(),
-            '/payment': (context) => const PaymentPage(),
+            //'/payment': (context) => const PaymentPage(),
             '/category': (context) => const CategoryPage(),
             '/favorites': (context) => const FavouritePage(),
-            '/cardPayment': (context) => const CardPaymentPage(),
-            '/wallet': (context) => const WalletPage(),
+            //'/cardPayment': (context) => const CardPaymentPage(),
+            //'/wallet': (context) => const WalletPage(),
           },
 
           onGenerateRoute: (settings) {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:p2/rently_app.dart';
+import 'package:p2/Rently_Logo.dart';
+//import 'package:p2/rently_app.dart';
 
 void main() {
 
