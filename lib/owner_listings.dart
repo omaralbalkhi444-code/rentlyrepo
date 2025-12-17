@@ -1,7 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:p2/services/firestore_service.dart';
 import 'AddItemPage .dart';
+import 'QrPage.dart';
 import 'bottom_nav.dart';
 
 class OwnerItemsPage extends StatefulWidget {
@@ -224,25 +227,51 @@ class _OwnerItemsPageState extends State<OwnerItemsPage> {
                 IconButton(
                   icon: const Icon(Icons.check_circle, color: Colors.green),
                   iconSize: 26,
-                  onPressed: () {
-                    FirebaseFirestore.instance
-                        .collection("rentalRequests")
-                        .doc(requestId)
-                        .update({"status": "accepted"});
+                  onPressed: () async {
+                    try {
+                      await FirestoreService.updateRentalRequestStatus(
+                        requestId,
+                        "accepted",
+                      );
+
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("Request accepted")),
+                      );
+                    } on FirebaseFunctionsException catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            e.message ?? "Cannot accept this request",
+                          ),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
                   },
                 ),
                 IconButton(
                   icon: const Icon(Icons.cancel, color: Colors.red),
                   iconSize: 26,
-                  onPressed: () {
-                    FirebaseFirestore.instance
-                        .collection("rentalRequests")
-                        .doc(requestId)
-                        .update({"status": "rejected"});
+                  onPressed: () async {
+                    await FirestoreService.updateRentalRequestStatus(
+                      requestId,
+                      "rejected",
+                    );
                   },
                 ),
               ],
-
+              if (status == "accepted")
+                IconButton(
+                  icon: const Icon(Icons.qr_code, size: 28),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => QrPage(qrToken: data["qrToken"]),
+                      ),
+                    );
+                  },
+                ),
               const SizedBox(width: 6),
             ],
           ),

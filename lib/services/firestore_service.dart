@@ -31,10 +31,15 @@ class FirestoreService {
   }
 
   static Future<void> updateRentalRequestStatus(
-      Map<String, dynamic> data) async {
+      String requestId, String newStatus,
+      {String? qrToken}) async {
     await FirebaseFunctions.instance
         .httpsCallable("updateRentalRequestStatus")
-        .call(data);
+        .call({
+      "requestId": requestId,
+      "newStatus": newStatus,
+      "qrToken": qrToken,
+    });
   }
 
   static Stream<List<RentalRequest>> getRenterRequestsByStatuses(

@@ -2,8 +2,8 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 
 export const createRentalRequest = onCall(async (request) => {
-  const customerUid = request.auth?.uid;
-  if (!customerUid) {
+  const userUid = request.auth?.uid;
+  if (!userUid) {
     throw new HttpsError("unauthenticated", "Not authenticated.");
   }
 
@@ -67,7 +67,7 @@ export const createRentalRequest = onCall(async (request) => {
 
   await db.collection("rentalRequests").add({
     ...data,
-    customerUid,
+    userUid,
     status: "pending",
     createdAt: FieldValue.serverTimestamp(),
   });

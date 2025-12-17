@@ -21,6 +21,9 @@ class RentalRequest {
   final num totalPrice;
   final String status;
 
+  final String? qrToken;
+  final DateTime? qrGeneratedAt;
+
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -39,6 +42,8 @@ class RentalRequest {
     this.pickupTime,
     required this.totalPrice,
     required this.status,
+    this.qrToken,
+    this.qrGeneratedAt,
     this.createdAt,
     this.updatedAt,
   });
@@ -63,7 +68,11 @@ class RentalRequest {
       totalPrice: data["totalPrice"] ?? 0,
       status: data["status"] ?? "pending",
 
-      // createdAt is Timestamp → convert safely
+      qrToken: data["qrToken"],
+      qrGeneratedAt: data["qrGeneratedAt"] != null
+          ? (data["qrGeneratedAt"] as Timestamp).toDate()
+          : null,
+
       createdAt: data["createdAt"] != null
           ? (data["createdAt"] as Timestamp).toDate()
           : null,

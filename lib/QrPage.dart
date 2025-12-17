@@ -2,16 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 class QrPage extends StatelessWidget {
-  final String qrData;
+  final String qrToken;
 
-  const QrPage({super.key, required this.qrData});
+  const QrPage({super.key, required this.qrToken});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Stack(
         children: [
-         
           Container(
             width: double.infinity,
             height: double.infinity,
@@ -26,9 +25,8 @@ class QrPage extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  
                   QrImageView(
-                    data: qrData,
+                    data: qrToken,
                     version: QrVersions.auto,
                     size: 250.0,
                     backgroundColor: Colors.white,
@@ -36,7 +34,7 @@ class QrPage extends StatelessWidget {
                   const SizedBox(height: 20),
                  
                   Text(
-                    'Scan this code to view order details',
+                    'To be scanned on item pickup',
                     style: TextStyle(fontSize: 16, color: Colors.grey[200]),
                   ),
                 ],

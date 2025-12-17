@@ -4,6 +4,7 @@ import 'package:p2/models/rental_request.dart';
 import 'package:p2/services/firestore_service.dart';
 import 'package:p2/QrPage.dart';
 import 'package:p2/WalletPage.dart';
+import 'QrScannerPage.dart';
 import 'app_locale.dart';
 import 'bottom_nav.dart';
 import 'package:p2/user_manager.dart';
@@ -53,9 +54,7 @@ class _OrdersPageState extends State<OrdersPage> {
     );
   }
 
-  // ---------------------------------------------------------
   // HEADER
-  // ---------------------------------------------------------
   Widget _buildHeader(double screenHeight, double screenWidth, bool small) {
     return ClipPath(
       clipper: SideCurveClipper(),
@@ -98,9 +97,7 @@ class _OrdersPageState extends State<OrdersPage> {
     );
   }
 
-  // ---------------------------------------------------------
   // TABS
-  // ---------------------------------------------------------
   Widget _buildTabs(double screenWidth, bool small) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -148,9 +145,7 @@ class _OrdersPageState extends State<OrdersPage> {
     );
   }
 
-  // ---------------------------------------------------------
   // TAB CONTENT
-  // ---------------------------------------------------------
   Widget _buildTabContent(String renterUid, double screenWidth) {
     if (selectedTab == 0) {
       // PENDING (pending + accepted)
@@ -210,9 +205,7 @@ class _OrdersPageState extends State<OrdersPage> {
     );
   }
 
-  // ---------------------------------------------------------
   // EXPANSION TILE FOR EACH ORDER
-  // ---------------------------------------------------------
   Widget _buildRequestTile(RentalRequest req) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -226,7 +219,7 @@ class _OrdersPageState extends State<OrdersPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
 
-            // --------- TITLE ROW (NO ICON HERE) ---------
+            //  TITLE ROW
             Row(
               children: [
                 const Icon(Icons.shopping_bag, color: Color(0xFF8A005D)),
@@ -245,7 +238,7 @@ class _OrdersPageState extends State<OrdersPage> {
 
             const SizedBox(height: 4),
 
-            // --------- STATUS ROW WITH QR ICON ON RIGHT ---------
+            //  STATUS ROW WITH QR ICON ON RIGHT
             Row(
               children: [
                 Text(
@@ -258,15 +251,12 @@ class _OrdersPageState extends State<OrdersPage> {
                 if (req.status == "accepted")
                   IconButton(
                     icon: const Icon(
-                        Icons.qr_code, size: 28, color: Color(0xFF1F0F46)),
+                        Icons.qr_code_scanner, size: 28, color: Color(0xFF1F0F46)),
                     onPressed: () {
-                      String qrData =
-                          "Item: ${req.itemTitle}\nTotal Price: ${req
-                          .totalPrice}\nRental Type: ${req.rentalType}";
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => QrPage(qrData: qrData),
+                          builder: (_) => QrScannerPage(requestId: req.id),
                         ),
                       );
                     },
@@ -276,7 +266,7 @@ class _OrdersPageState extends State<OrdersPage> {
 
             const SizedBox(height: 8),
 
-            // --------- EXPANSION TILE ---------
+            //  EXPANSION TILE
             ExpansionTile(
               tilePadding: EdgeInsets.zero,
               title: const Text("View Details"),
@@ -314,9 +304,7 @@ class _OrdersPageState extends State<OrdersPage> {
   }
 }
 
-// ---------------------------------------------------------
 // CLIPPER
-// ---------------------------------------------------------
 class SideCurveClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
