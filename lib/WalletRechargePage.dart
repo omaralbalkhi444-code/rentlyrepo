@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:p2/ClickPaymentPage.dart';
 import 'package:p2/CreditCardPaymentPage.dart';
 
-
 class WalletRechargePage extends StatefulWidget {
   const WalletRechargePage({super.key});
 
@@ -12,25 +11,32 @@ class WalletRechargePage extends StatefulWidget {
 
 class _WalletRechargePageState extends State<WalletRechargePage> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  String selectedMethod = 'Credit Card';
+  String? selectedMethod;
   final TextEditingController amountController = TextEditingController();
   double currentBalance = 1250.75;
 
   final List<Map<String, dynamic>> quickAmounts = [
-    {'amount': '50', 'icon': Icons.attach_money, 'color': Colors.green},
-    {'amount': '100', 'icon': Icons.money, 'color': Colors.blue},
-    {'amount': '200', 'icon': Icons.account_balance_wallet, 'color': Colors.orange},
-    {'amount': '500', 'icon': Icons.savings, 'color': Colors.purple},
-    {'amount': '1000', 'icon': Icons.diamond, 'color': Colors.red},
+    {'amount': '50', 'icon': Icons.attach_money, 'color': Color(0xFF8A005D)},
+    {'amount': '100', 'icon': Icons.money, 'color': Color(0xFF9C27B0)},
+    {'amount': '200', 'icon': Icons.account_balance_wallet, 'color': Color(0xFF673AB7)},
+    {'amount': '500', 'icon': Icons.savings, 'color': Color(0xFF3F51B5)},
+    {'amount': '1000', 'icon': Icons.diamond, 'color': Color(0xFF1F0F46)},
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Recharge Wallet'),
+        title: const Text(
+          'Recharge Wallet',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+          ),
+        ),
+        backgroundColor: Color(0xFF1F0F46),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -41,7 +47,7 @@ class _WalletRechargePageState extends State<WalletRechargePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // بطاقة الرصيد الحالي
+            
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
@@ -109,7 +115,7 @@ class _WalletRechargePageState extends State<WalletRechargePage> {
 
               const SizedBox(height: 25),
 
-              // قسم إدخال المبلغ
+        
               Card(
                 elevation: 3,
                 shape: RoundedRectangleBorder(
@@ -188,7 +194,7 @@ class _WalletRechargePageState extends State<WalletRechargePage> {
 
               const SizedBox(height: 20),
 
-              // مبالغ سريعة
+        
               Card(
                 elevation: 3,
                 shape: RoundedRectangleBorder(
@@ -277,7 +283,7 @@ class _WalletRechargePageState extends State<WalletRechargePage> {
 
               const SizedBox(height: 25),
 
-              // اختيار طريقة الدفع
+              
               Card(
                 elevation: 3,
                 shape: RoundedRectangleBorder(
@@ -306,7 +312,7 @@ class _WalletRechargePageState extends State<WalletRechargePage> {
                       const Divider(height: 1, color: Colors.grey),
                       const SizedBox(height: 15),
 
-                      // بطاقة الائتمان
+                
                       GestureDetector(
                         onTap: () {
                           setState(() {
@@ -381,25 +387,25 @@ class _WalletRechargePageState extends State<WalletRechargePage> {
                         ),
                       ),
 
-                      // Click
+                  
                       GestureDetector(
                         onTap: () {
                           setState(() {
-                            selectedMethod = 'Click';
+                            selectedMethod = 'eFawateercom';
                           });
                         },
                         child: Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: selectedMethod == 'Click'
+                            color: selectedMethod == 'eFawateercom'
                                 ? const Color(0xFF8A005D).withOpacity(0.1)
                                 : Colors.white,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: selectedMethod == 'Click'
+                              color: selectedMethod == 'eFawateercom'
                                   ? const Color(0xFF8A005D)
                                   : Colors.grey[300]!,
-                              width: selectedMethod == 'Click' ? 2 : 1,
+                              width: selectedMethod == 'eFawateercom' ? 2 : 1,
                             ),
                           ),
                           child: Row(
@@ -407,14 +413,14 @@ class _WalletRechargePageState extends State<WalletRechargePage> {
                               Container(
                                 padding: const EdgeInsets.all(10),
                                 decoration: BoxDecoration(
-                                  color: selectedMethod == 'Click'
+                                  color: selectedMethod == 'eFawateercom'
                                       ? const Color(0xFF8A005D)
                                       : Colors.grey[200],
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Icon(
                                   Icons.account_balance_wallet,
-                                  color: selectedMethod == 'Click'
+                                  color: selectedMethod == 'eFawateercom'
                                       ? Colors.white
                                       : Colors.grey[600],
                                   size: 24,
@@ -426,13 +432,13 @@ class _WalletRechargePageState extends State<WalletRechargePage> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      'Click',
+                                      'eFawateercom',
                                       style: TextStyle(
                                         fontSize: 16,
-                                        fontWeight: selectedMethod == 'Click'
+                                        fontWeight: selectedMethod == 'eFawateercom'
                                             ? FontWeight.w700
                                             : FontWeight.w600,
-                                        color: selectedMethod == 'Click'
+                                        color: selectedMethod == 'eFawateercom'
                                             ? const Color(0xFF8A005D)
                                             : const Color(0xFF1F0F46),
                                       ),
@@ -448,7 +454,7 @@ class _WalletRechargePageState extends State<WalletRechargePage> {
                                   ],
                                 ),
                               ),
-                              if (selectedMethod == 'Click')
+                              if (selectedMethod == 'eFawateercom')
                                 const Icon(Icons.check_circle, color: Color(0xFF8A005D), size: 24),
                             ],
                           ),
@@ -459,19 +465,19 @@ class _WalletRechargePageState extends State<WalletRechargePage> {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.blue[50],
+                          color: Color(0xFF8A005D).withOpacity(0.1),
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.blue[100]!),
+                          border: Border.all(color: Color(0xFF8A005D).withOpacity(0.3)),
                         ),
-                        child: Row(
+                        child: const Row(
                           children: [
-                            const Icon(Icons.lock, color: Colors.blue, size: 18),
-                            const SizedBox(width: 10),
+                            Icon(Icons.lock, color: Color(0xFF8A005D), size: 18),
+                            SizedBox(width: 10),
                             Expanded(
                               child: Text(
                                 'Your payment is secure and encrypted',
                                 style: TextStyle(
-                                  color: Colors.blue[800]!,
+                                  color: Color(0xFF8A005D),
                                   fontSize: 13,
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -487,43 +493,75 @@ class _WalletRechargePageState extends State<WalletRechargePage> {
 
               const SizedBox(height: 30),
 
-              // زر الاستمرار
+          
               SizedBox(
                 width: double.infinity,
                 height: 55,
-                child: ElevatedButton(
-                  onPressed: _handlePayment,
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.lock_outline,
-                        color: Colors.white,
-                        size: 22,
-                      ),
-                      SizedBox(width: 10),
-                      Text(
-                        'Continue to Payment',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: selectedMethod != null
+                        ? const LinearGradient(
+                            colors: [Color(0xFF1F0F46), Color(0xFF8A005D)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          )
+                        : LinearGradient(
+                            colors: [Colors.grey[400]!, Colors.grey[500]!],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: selectedMethod != null
+                        ? [
+                            BoxShadow(
+                              color: const Color(0xFF8A005D).withOpacity(0.4),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: selectedMethod != null ? _handlePayment : null,
+                      child: Center(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.lock_outline,
+                              color: selectedMethod != null ? Colors.white : Colors.grey[300],
+                              size: 22,
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              'Continue to Payment',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                color: selectedMethod != null ? Colors.white : Colors.grey[300],
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Icon(
+                              Icons.arrow_forward,
+                              color: selectedMethod != null ? Colors.white : Colors.grey[300],
+                              size: 20,
+                            ),
+                          ],
                         ),
                       ),
-                      SizedBox(width: 10),
-                      Icon(
-                        Icons.arrow_forward,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
 
               const SizedBox(height: 20),
 
-              // معلومات إضافية
+      
               Container(
                 padding: const EdgeInsets.all(15),
                 decoration: BoxDecoration(
@@ -588,9 +626,9 @@ class _WalletRechargePageState extends State<WalletRechargePage> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
+          const Icon(
             Icons.check_circle,
-            color: Colors.green[600],
+            color: Color(0xFF8A005D),
             size: 16,
           ),
           const SizedBox(width: 8),
@@ -625,11 +663,11 @@ class _WalletRechargePageState extends State<WalletRechargePage> {
           builder: (context) => CreditCardPaymentPage(amount: amount),
         ),
       );
-    } else {
+    } else if (selectedMethod == 'eFawateercom') {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => ClickPaymentPage(amount: amount),
+          builder: (context) => PaymentSharingPage(),
         ),
       );
     }
