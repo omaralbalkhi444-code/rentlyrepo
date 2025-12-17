@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_custom_clippers/flutter_custom_clippers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; 
 
 class AdminLoginPage extends StatefulWidget {
   const AdminLoginPage({super.key});
@@ -18,20 +20,51 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
   bool _obscurePassword = true;
   bool _isLoading = false;
 
+  
   void login() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(seconds: 1));
-    setState(() => _isLoading = false);
 
-    if (emailController.text.trim() == "admin@rently.com" &&
-        passwordController.text.trim() == "1234") {
-      context.go('/dashboard');
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invalid admin credentials')),
+    try {
+      final userCredential =
+          await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
       );
+
+      //  
+      final uid = userCredential.user!.uid;
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+
+      if (!userDoc.exists || userDoc.data()?['role'] != 'ADMIN') {
+        await FirebaseAuth.instance.signOut();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Access denied: Admins only'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+    
+
+      //  go to dashboard
+      context.go('/dashboard');
+
+    } on FirebaseAuthException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.message ?? "Login failed"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
@@ -79,7 +112,6 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
               ],
             ),
 
-           
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 30),
               child: Container(
@@ -133,7 +165,8 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                               color: Colors.grey,
                             ),
                             onPressed: () {
-                              setState(() => _obscurePassword = !_obscurePassword);
+                              setState(
+                                  () => _obscurePassword = !_obscurePassword);
                             },
                           ),
                           border: OutlineInputBorder(
@@ -162,9 +195,11 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Text("Login",
-                                      style: TextStyle(color: Colors.white)),
+                                      style:
+                                          TextStyle(color: Colors.white)),
                                   SizedBox(width: 8),
-                                  Icon(Icons.arrow_forward, color: Colors.white),
+                                  Icon(Icons.arrow_forward,
+                                      color: Colors.white),
                                 ],
                               ),
                             ),
