@@ -1,9 +1,9 @@
-// ignore_for_file: prefer_const_constructors, prefer_const_literals_to_create_immutables
 
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_custom_clippers/flutter_custom_clippers.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:p2/logic/phone_logic.dart';
 import 'package:p2/services/firestore_service.dart';
 import 'package:p2/services/storage_service.dart';
 import 'app_locale.dart';
@@ -31,8 +31,9 @@ class _PhonePageState extends State<PhonePage> {
   File? idImage;
   File? faceImage;
   bool faceDetected = false;
+  bool isLoading = false;
 
-  Future pickID() async {
+  Future<void> pickID() async {
     final img = await ImagePicker().pickImage(source: ImageSource.gallery);
     if (img != null) {
       setState(() {
@@ -41,7 +42,7 @@ class _PhonePageState extends State<PhonePage> {
     }
   }
 
-  Future pickFace() async {
+  Future<void> pickFace() async {
     final img = await ImagePicker().pickImage(source: ImageSource.gallery);
     if (img != null) {
       setState(() {
@@ -52,40 +53,40 @@ class _PhonePageState extends State<PhonePage> {
   }
 
   void validateAndContinue() async {
-    if (firstNameController.text.trim().isEmpty
-        || lastNameController.text.trim().isEmpty
-        || birthDateController.text.trim().isEmpty
-        || phoneController.text.trim().isEmpty) {
-      showMsg("Please fill all required fields.");
+  
+    final errors = PhoneLogic.validateAllFields(
+      firstName: firstNameController.text.trim(),
+      lastName: lastNameController.text.trim(),
+      birthDate: birthDateController.text.trim(),
+      phone: phoneController.text.trim(),
+      idImage: idImage,
+      faceImage: faceImage,
+      faceDetected: faceDetected,
+    );
+
+    if (errors.isNotEmpty) {
+      _showMessage(errors.first);
       return;
     }
 
-    if (idImage == null) {
-      showMsg("Please upload your ID photo");
-      return;
-    }
-
-    if (faceImage == null || faceDetected == false) {
-      showMsg("Please complete a valid face scan");
-      return;
-    }
+    setState(() => isLoading = true);
 
     try {
-      showMsg("Uploading images...");
+      _showMessage("Uploading images...");
 
-      String idUrl = await StorageService.uploadVerificationImage(
+      final idUrl = await StorageService.uploadVerificationImage(
         widget.uid,
         idImage!,
         "idPhoto.jpg",
       );
 
-      String selfieUrl = await StorageService.uploadVerificationImage(
+      final selfieUrl = await StorageService.uploadVerificationImage(
         widget.uid,
         faceImage!,
         "selfie.jpg",
       );
 
-      showMsg("Submitting for approval...");
+      _showMessage("Submitting for approval...");
 
       await FirestoreService.submitUserForApproval({
         "firstName": firstNameController.text.trim(),
@@ -94,38 +95,32 @@ class _PhonePageState extends State<PhonePage> {
         "birthDate": birthDateController.text.trim(),
         "idPhotoUrl": idUrl,
         "selfiePhotoUrl": selfieUrl,
+        "email": widget.email,
+        "userId": widget.uid,
       });
 
-      showMsg("Successfully submitted! Await approval.");
-
+      _showMessage("Successfully submitted! Await approval.");
+      
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("You are submitted for approval")),
       );
+
     } catch (e) {
       print("Error: $e");
-      showMsg("Something went wrong, try again.");
+      _showMessage("Something went wrong, try again.");
+    } finally {
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
     }
   }
 
-  /*String phone = phoneController.text.trim();
-
-    if (phone.isEmpty) {
-      showMsg("Please enter your phone number");
-      return;
+  void _showMessage(String msg) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(msg)),
+      );
     }
-
-    Navigator.pushNamed(
-      context,
-      '/enterCode',
-      arguments: {
-        "phone": "+962$phone",
-        "idImage": idImage,
-        "faceImage": faceImage,
-      },
-    );*/
-
-  void showMsg(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   @override
@@ -180,8 +175,9 @@ class _PhonePageState extends State<PhonePage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      SizedBox(height: 30),
+                      const SizedBox(height: 30),
 
+                    
                       TextField(
                         controller: firstNameController,
                         decoration: InputDecoration(
@@ -191,8 +187,9 @@ class _PhonePageState extends State<PhonePage> {
                           ),
                         ),
                       ),
-                      SizedBox(height: 15),
+                      const SizedBox(height: 15),
 
+                    
                       TextField(
                         controller: lastNameController,
                         decoration: InputDecoration(
@@ -202,8 +199,9 @@ class _PhonePageState extends State<PhonePage> {
                           ),
                         ),
                       ),
-                      SizedBox(height: 15),
+                      const SizedBox(height: 15),
 
+                  
                       TextField(
                         controller: birthDateController,
                         readOnly: true,
@@ -213,10 +211,10 @@ class _PhonePageState extends State<PhonePage> {
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(30),
                           ),
-                          suffixIcon: Icon(Icons.calendar_today),
+                          suffixIcon: const Icon(Icons.calendar_today),
                         ),
                         onTap: () async {
-                          DateTime? pickedDate = await showDatePicker(
+                          final pickedDate = await showDatePicker(
                             context: context,
                             initialDate: DateTime(2000),
                             firstDate: DateTime(1900),
@@ -224,29 +222,29 @@ class _PhonePageState extends State<PhonePage> {
                           );
 
                           if (pickedDate != null) {
-                            birthDateController.text =
-                            "${pickedDate.year}-${pickedDate.month}-${pickedDate.day}";
+                            birthDateController.text = PhoneLogic.formatDate(pickedDate);
                             setState(() {});
                           }
                         },
                       ),
 
-                      SizedBox(height: 25),
+                      const SizedBox(height: 25),
 
+                
                       Row(
                         children: [
                           Container(
-                            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                             decoration: BoxDecoration(
                               border: Border.all(color: Colors.black54),
                               borderRadius: BorderRadius.circular(30),
                             ),
-                            child: Text(
+                            child: const Text(
                               "+962",
                               style: TextStyle(fontWeight: FontWeight.bold),
                             ),
                           ),
-                          SizedBox(width: 10),
+                          const SizedBox(width: 10),
                           Expanded(
                             child: TextField(
                               controller: phoneController,
@@ -262,8 +260,9 @@ class _PhonePageState extends State<PhonePage> {
                         ],
                       ),
 
-                      SizedBox(height: 25),
+                      const SizedBox(height: 25),
 
+                  
                       Row(
                         children: [
                           Expanded(
@@ -271,7 +270,7 @@ class _PhonePageState extends State<PhonePage> {
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
                                 Text(AppLocale.t('add_id_photo')),
-                                SizedBox(height: 8),
+                                const SizedBox(height: 8),
                                 GestureDetector(
                                   onTap: pickID,
                                   child: Container(
@@ -281,20 +280,23 @@ class _PhonePageState extends State<PhonePage> {
                                       borderRadius: BorderRadius.circular(30),
                                     ),
                                     child: Center(
-                                      child: Icon(Icons.image, size: 28),
+                                      child: idImage != null
+                                          ? const Icon(Icons.check_circle, 
+                                              color: Colors.green, size: 28)
+                                          : const Icon(Icons.image, size: 28),
                                     ),
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          SizedBox(width: 15),
+                          const SizedBox(width: 15),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
                                 Text(AppLocale.t('face_scan')),
-                                SizedBox(height: 8),
+                                const SizedBox(height: 8),
                                 GestureDetector(
                                   onTap: pickFace,
                                   child: Container(
@@ -304,7 +306,10 @@ class _PhonePageState extends State<PhonePage> {
                                       borderRadius: BorderRadius.circular(30),
                                     ),
                                     child: Center(
-                                      child: Icon(Icons.face, size: 28),
+                                      child: faceDetected
+                                          ? const Icon(Icons.face, 
+                                              color: Colors.green, size: 28)
+                                          : const Icon(Icons.face, size: 28),
                                     ),
                                   ),
                                 ),
@@ -314,8 +319,9 @@ class _PhonePageState extends State<PhonePage> {
                         ],
                       ),
 
-                      SizedBox(height: 40),
+                      const SizedBox(height: 40),
 
+                  
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
@@ -324,31 +330,41 @@ class _PhonePageState extends State<PhonePage> {
                             children: [
                               ElevatedButton(
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: Color(0xFF8A005D),
-                                  padding: EdgeInsets.symmetric(horizontal: 40, vertical: 12),
+                                  backgroundColor: const Color(0xFF8A005D),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 40, vertical: 12),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(30),
                                   ),
                                 ),
-                                onPressed: validateAndContinue,
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      AppLocale.t('continue'),
-                                      style: TextStyle(color: Colors.white),
-                                    ),
-                                    SizedBox(width: 8),
-                                    Icon(Icons.arrow_forward, color: Colors.white),
-                                  ],
-                                ),
+                                onPressed: isLoading ? null : validateAndContinue,
+                                child: isLoading
+                                    ? const SizedBox(
+                                        height: 18,
+                                        width: 18,
+                                        child: CircularProgressIndicator(
+                                            color: Colors.white, strokeWidth: 2),
+                                      )
+                                    : Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            AppLocale.t('continue'),
+                                            style: const TextStyle(color: Colors.white),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          const Icon(Icons.arrow_forward, 
+                                              color: Colors.white),
+                                        ],
+                                      ),
                               ),
-                              SizedBox(height: 15),
+                              const SizedBox(height: 15),
 
                               ElevatedButton(
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.grey,
-                                  padding: EdgeInsets.symmetric(horizontal: 50, vertical: 12),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 50, vertical: 12),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(30),
                                   ),
@@ -358,7 +374,7 @@ class _PhonePageState extends State<PhonePage> {
                                 },
                                 child: Text(
                                   AppLocale.t('Back'),
-                                  style: TextStyle(color: Colors.white),
+                                  style: const TextStyle(color: Colors.white),
                                 ),
                               ),
                             ],
@@ -376,6 +392,3 @@ class _PhonePageState extends State<PhonePage> {
     );
   }
 }
-
-
-
