@@ -1,8 +1,9 @@
+
 import 'package:flutter/material.dart';
 import 'package:flutter_custom_clippers/flutter_custom_clippers.dart';
+import 'package:p2/logic/create_account_logic.dart';
 import 'Phone_Page.dart';
 import 'app_locale.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class CreateAccountPage extends StatefulWidget {
   const CreateAccountPage({super.key});
@@ -11,43 +12,22 @@ class CreateAccountPage extends StatefulWidget {
   State<CreateAccountPage> createState() => _CreateAccountPageState();
 }
 
-class MockAuth {
-  MockAuth._();
-  static final MockAuth instance = MockAuth._();
-
-  final Set<String> _registeredEmails = {'test@example.com'};
-
-  Future<String?> signUpWithEmail(String email, String password) async {
-    await Future.delayed(const Duration(milliseconds: 700));
-
-    final e = email.trim();
-
-    if (e.isEmpty || password.isEmpty) {
-      return 'Please fill in all fields';
-    }
-    if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(e)) {
-      return 'Invalid mail';
-    }
-    if (password.length < 6) return ' The password must be at least 6 characters long. ';
-    if (_registeredEmails.contains(e)) {
-      return ' This email address has been used before.';
-    }
-
-
-    _registeredEmails.add(e);
-    return null;
-  }
-}
-
 class _CreateAccountPageState extends State<CreateAccountPage> {
   final _formKey = GlobalKey<FormState>();
-
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
   bool isLoading = false;
   bool obscurePassword = true;
   String? _errorMessage;
+
+  late CreateAccountLogic _createAccountLogic;
+
+  @override
+  void initState() {
+    super.initState();
+    _createAccountLogic = CreateAccountLogic();
+  }
 
   @override
   void dispose() {
@@ -56,45 +36,40 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
     super.dispose();
   }
 
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.red),
-    );
-  }
-
   Future<void> _onContinue() async {
+    if (!_formKey.currentState!.validate()) return;
 
     setState(() {
       isLoading = true;
+      _errorMessage = null;
     });
 
-    try {
+    final userId = await _createAccountLogic.createUserWithEmail(
+      email: emailController.text,
+      password: passwordController.text,
+    );
 
-      UserCredential userCred = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(
-        email: emailController.text.trim(),
-        password: passwordController.text.trim(),
-      );
+    if (!mounted) return;
 
-      final uid = userCred.user!.uid;
+    setState(() => isLoading = false);
+
+    if (userId != null) {
 
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => PhonePage(
-            uid: uid,
+            uid: userId,
             email: emailController.text.trim(),
           ),
         ),
       );
-
-    } catch (e) {
-      print("Signup error: $e");
+    } else {
+      // Error
+      setState(() {
+        _errorMessage = "Registration failed. Please try again.";
+      });
     }
-
-    setState(() {
-      isLoading = false;
-    });
   }
 
   @override
@@ -180,6 +155,7 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
 
                         const SizedBox(height: 30),
 
+                
                         TextFormField(
                           controller: emailController,
                           decoration: InputDecoration(
@@ -188,19 +164,12 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                               borderRadius: BorderRadius.circular(30),
                             ),
                           ),
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return "Please enter your email";
-                            }
-                            if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
-                              return "Invalid email address";
-                            }
-                            return null;
-                          },
+                          validator: CreateAccountLogic.validateEmail,
                         ),
 
                         const SizedBox(height: 20),
 
+                        
                         TextFormField(
                           controller: passwordController,
                           obscureText: obscurePassword,
@@ -211,7 +180,9 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                             ),
                             suffixIcon: IconButton(
                               icon: Icon(
-                                obscurePassword ? Icons.visibility_off : Icons.visibility,
+                                obscurePassword 
+                                    ? Icons.visibility_off 
+                                    : Icons.visibility,
                               ),
                               onPressed: () {
                                 setState(() {
@@ -220,57 +191,48 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                               },
                             ),
                           ),
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return "Please enter your password";
-                            }
-                            if (value.length < 6) {
-                              return "Password must be at least 6 characters";
-                            }
-                            return null;
-                          },
+                          validator: CreateAccountLogic.validatePassword,
                         ),
+
                         const SizedBox(height: 40),
 
                         Row(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF8A005D),
-                                    padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(30),
-                                    ),
-                                  ),
-                                  onPressed: isLoading ? null : _onContinue,
-                                  child: isLoading
-                                      ? const SizedBox(
-                                    height: 18,
-                                    width: 18,
-                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                                  )
-                                      : Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(AppLocale.t('continue'),
-                                          style: const TextStyle(color: Colors.white)),
-                                      const SizedBox(width: 8),
-                                      const Icon(Icons.arrow_forward, color: Colors.white),
-                                    ],
-                                  ),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF8A005D),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 40, vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30),
                                 ),
-                              ],
+                              ),
+                              onPressed: isLoading ? null : _onContinue,
+                              child: isLoading
+                                  ? const SizedBox(
+                                      height: 18,
+                                      width: 18,
+                                      child: CircularProgressIndicator(
+                                          color: Colors.white, strokeWidth: 2),
+                                    )
+                                  : Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(AppLocale.t('continue'),
+                                            style: const TextStyle(color: Colors.white)),
+                                        const SizedBox(width: 8),
+                                        const Icon(Icons.arrow_forward, color: Colors.white),
+                                      ],
+                                    ),
                             ),
                           ],
                         ),
 
                         if (_errorMessage != null) ...[
                           const SizedBox(height: 16),
-                          Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
+                          Text(_errorMessage!, 
+                              style: const TextStyle(color: Colors.red)),
                         ],
                       ],
                     ),
@@ -284,5 +246,3 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
     );
   }
 }
-
-
