@@ -63,6 +63,15 @@ class AdminDashboard extends StatelessWidget {
                   _buildDashboardCard(context, "Manage Users", Icons.person, '/users'),
                   _buildDashboardCard(context, "Reports", Icons.bar_chart, '/reports'),
                   _buildDashboardCard(context, "Item Management", Icons.inventory, '/items'),
+
+                  //  NEW: Item Notifications
+                  //_buildDashboardCard(
+                  //  context,
+                  //  "Item Notifications",
+                  //  Icons.notifications_active,
+                  //  '/item-notifications',
+                  // ),
+
                   _buildDashboardCard(context, "Transactions", Icons.monetization_on, '/transactions'),
                   _buildDashboardCard(context, "Complaints", Icons.report_problem, '/complaints'),
                   _buildDashboardCard(context, "Notifications", Icons.notifications, '/notifications'),
