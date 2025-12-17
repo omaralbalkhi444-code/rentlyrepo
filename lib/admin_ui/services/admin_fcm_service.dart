@@ -7,25 +7,25 @@ class AdminFcmService {
       FirebaseMessaging.instance;
 
   static Future<void> init() async {
-    if (!kIsWeb) return; // 🔥 مهم جدًا
+    if (!kIsWeb) return; //   
 
-    // 1️⃣ Request notification permission
+    //  Request notification permission
     final permission =
         await html.Notification.requestPermission();
 
     if (permission != 'granted') {
-      print('❌ Notification permission not granted');
+      print(' Notification permission not granted');
       return;
     }
 
-    // 2️⃣ Get FCM token
+    //  Get FCM token
     final token = await _messaging.getToken(
       vapidKey: 'BPmWSN-U3ZBlS5k-3aZWBgPWl1PWfnV-mRsdyCd-bDKH2dHJUhlEQcjgI8egRGAIZ3syeJCOeoGqPSZJ5U6bVxE',
     );
 
-    print('✅ Admin FCM Token: $token');
+    print(' Admin FCM Token: $token');
 
-    // 3️⃣ Listen for foreground messages
+    //   foreground messages
     FirebaseMessaging.onMessage.listen((message) {
       final title =
           message.notification?.title ?? 'New Notification';
@@ -50,3 +50,4 @@ class AdminFcmService {
     );
   }
 }
+
