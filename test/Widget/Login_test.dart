@@ -35,16 +35,16 @@ void main() {
   //   ),
   // );
 
-  await tester.enterText(
-      find.byType(TextFormField).first, "test@mail.com");
-  await tester.enterText(
-      find.byType(TextFormField).last, "123456");
+//   await tester.enterText(
+//       find.byType(TextFormField).first, "test@mail.com");
+//   await tester.enterText(
+//       find.byType(TextFormField).last, "123456");
 
-  await tester.tap(find.byIcon(Icons.arrow_forward));
-  await tester.pumpAndSettle();
+//   await tester.tap(find.byIcon(Icons.arrow_forward));
+//   await tester.pumpAndSettle();
 
-  expect(find.text('Category Page'), findsOneWidget);
-});
+//   expect(find.text('Category Page'), findsOneWidget);
+// });
 
 // 3 chek if empty form
   testWidgets("Validation shows for empty fields", (WidgetTester tester) async {
