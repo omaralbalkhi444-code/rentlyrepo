@@ -4,11 +4,10 @@ class CashWithdrawalPage extends StatefulWidget {
   const CashWithdrawalPage({super.key});
 
   @override
-  State<CashWithdrawalPage> createState() => CashWithdrawalPageState();
+  State<CashWithdrawalPage> createState() => _CashWithdrawalPageState();
 }
 
-class CashWithdrawalPageState extends State<CashWithdrawalPage> {
-  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+class _CashWithdrawalPageState extends State<CashWithdrawalPage> {
   final TextEditingController amountController = TextEditingController();
   final TextEditingController fullNameController = TextEditingController();
   final TextEditingController nationalIdController = TextEditingController();
@@ -16,16 +15,52 @@ class CashWithdrawalPageState extends State<CashWithdrawalPage> {
   final TextEditingController phoneController = TextEditingController();
 
   double currentBalance = 1250.75;
-  String? selectedAgentType = 'Exchange Office';
   DateTime? selectedBirthDate;
+  bool _showErrors = false;
 
-  final List<String> agentTypes = [
-    'Exchange Office',
-    'Bank Branch',
-    'Western Union',
-    'MoneyGram',
-    'Local Agent'
+  
+  final List<Map<String, dynamic>> quickAmounts = [
+    {'amount': '50', 'icon': Icons.attach_money, 'color': Color(0xFF8A005D)},
+    {'amount': '100', 'icon': Icons.money, 'color': Color(0xFF9C27B0)},
+    {'amount': '200', 'icon': Icons.account_balance_wallet, 'color': Color(0xFF673AB7)},
+    {'amount': '500', 'icon': Icons.savings, 'color': Color(0xFF3F51B5)},
+    {'amount': '1000', 'icon': Icons.diamond, 'color': Color(0xFF1F0F46)},
   ];
+  String? _amountError;
+  String? _fullNameError;
+  String? _nationalIdError;
+  String? _birthDateError;
+  String? _phoneError;
+
+  void _updateAmountError() {
+    setState(() {
+      _amountError = validateAmount(amountController.text);
+    });
+  }
+
+  void _updateFullNameError() {
+    setState(() {
+      _fullNameError = validateFullName(fullNameController.text);
+    });
+  }
+
+  void _updateNationalIdError() {
+    setState(() {
+      _nationalIdError = validateNationalID(nationalIdController.text);
+    });
+  }
+
+  void _updateBirthDateError() {
+    setState(() {
+      _birthDateError = validateBirthDate(birthDateController.text);
+    });
+  }
+
+  void _updatePhoneError() {
+    setState(() {
+      _phoneError = validatePhoneNumber(phoneController.text);
+    });
+  }
 
   String? validateAmount(String? value) {
     if (value == null || value.isEmpty) {
@@ -161,7 +196,6 @@ class CashWithdrawalPageState extends State<CashWithdrawalPage> {
       return 'Phone must be 10 digits';
     }
     
-    // تغيير شروط الهاتف العراقي إلى شروط الهاتف الأردني
     if (cleanedPhone[0] != '0') {
       return 'Must start with 0';
     }
@@ -176,6 +210,27 @@ class CashWithdrawalPageState extends State<CashWithdrawalPage> {
     }
     
     return null;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    
+    amountController.addListener(_updateAmountError);
+    fullNameController.addListener(_updateFullNameError);
+    nationalIdController.addListener(_updateNationalIdError);
+    birthDateController.addListener(_updateBirthDateError);
+    phoneController.addListener(_updatePhoneError);
+  }
+
+  @override
+  void dispose() {
+    amountController.removeListener(_updateAmountError);
+    fullNameController.removeListener(_updateFullNameError);
+    nationalIdController.removeListener(_updateNationalIdError);
+    birthDateController.removeListener(_updateBirthDateError);
+    phoneController.removeListener(_updatePhoneError);
+    super.dispose();
   }
 
   Future<void> selectBirthDate() async {
@@ -207,6 +262,7 @@ class CashWithdrawalPageState extends State<CashWithdrawalPage> {
         birthDateController.text = '${pickedDate.day.toString().padLeft(2, '0')}/'
                                  '${pickedDate.month.toString().padLeft(2, '0')}/'
                                  '${pickedDate.year}';
+        _updateBirthDateError();
       });
     }
   }
@@ -214,7 +270,42 @@ class CashWithdrawalPageState extends State<CashWithdrawalPage> {
   void onQuickAmountSelected(String amount) {
     setState(() {
       amountController.text = amount;
+      _updateAmountError();
     });
+  }
+
+  void _validateAndShowErrors() {
+    setState(() {
+      _showErrors = true;
+      _updateAmountError();
+      _updateFullNameError();
+      _updateNationalIdError();
+      _updateBirthDateError();
+      _updatePhoneError();
+    });
+    
+    final hasErrors = _amountError != null || 
+                     _fullNameError != null || 
+                     _nationalIdError != null || 
+                     _birthDateError != null || 
+                     _phoneError != null;
+    
+    if (hasErrors) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Please fill in all required fields correctly',
+            style: TextStyle(color: Colors.white),
+          ),
+          backgroundColor: Colors.red[800],
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
   @override
@@ -229,544 +320,531 @@ class CashWithdrawalPageState extends State<CashWithdrawalPage> {
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(25),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF1F0F46), Color(0xFF8A005D)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF8A005D).withOpacity(0.3),
+                    blurRadius: 15,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.account_balance_wallet, color: Colors.white70, size: 20),
+                      SizedBox(width: 8),
+                      Text(
+                        'AVAILABLE BALANCE',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    '\$${currentBalance.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 36,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                  const SizedBox(height: 15),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white.withOpacity(0.2)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _buildBalanceStat('Daily Limit', '\$1,000.00'),
+                        _buildBalanceStat('Weekly Limit', '\$5,000.00'),
+                        _buildBalanceStat('Monthly Limit', '\$20,000.00'),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 30),
+
+            Card(
+              elevation: 3,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.money_off, color: Color(0xFF8A005D)),
+                        SizedBox(width: 10),
+                        Text(
+                          'Withdrawal Amount',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF1F0F46),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 15),
+                    const Divider(height: 1),
+
+                    const SizedBox(height: 20),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        TextField(
+                          controller: amountController,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF1F0F46),
+                          ),
+                          decoration: InputDecoration(
+                            hintText: '0.00',
+                            hintStyle: TextStyle(
+                              fontSize: 28,
+                              color: Colors.grey[400],
+                              fontWeight: FontWeight.w700,
+                            ),
+                            prefixIcon: const Icon(
+                              Icons.attach_money,
+                              color: Color(0xFF8A005D),
+                              size: 28,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                            filled: true,
+                            fillColor: Colors.grey[50],
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 20,
+                            ),
+                            suffixText: 'USD',
+                            suffixStyle: const TextStyle(
+                              color: Color(0xFF8A005D),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        if (_showErrors && _amountError != null)
+                          _buildErrorText(_amountError!),
+                      ],
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    const Text(
+                      'Quick Amounts',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF666666),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: quickAmounts.map((item) {
+                        return GestureDetector(
+                          onTap: () => onQuickAmountSelected(item['amount']),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  (item['color'] as Color).withOpacity(0.9),
+                                  (item['color'] as Color).withOpacity(0.7),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(10),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: (item['color'] as Color).withOpacity(0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  item['icon'] as IconData,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '\$${item['amount']}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 30),
+
+            Card(
+              elevation: 3,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.person_outline, color: Color(0xFF8A005D)),
+                        SizedBox(width: 10),
+                        Text(
+                          'Personal Information',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF1F0F46),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 15),
+                    const Divider(height: 1),
+
+                    const SizedBox(height: 20),
+                    _buildFormFieldWithError(
+                      'Full Name *',
+                      fullNameController,
+                      Icons.person,
+                      _fullNameError,
+                      TextInputType.text,
+                    ),
+                    const SizedBox(height: 15),
+                    _buildFormFieldWithError(
+                      'National ID Number *',
+                      nationalIdController,
+                      Icons.credit_card,
+                      _nationalIdError,
+                      TextInputType.number,
+                    ),
+                    const SizedBox(height: 15),
+                    GestureDetector(
+                      onTap: selectBirthDate,
+                      child: AbsorbPointer(
+                        child: _buildFormFieldWithError(
+                          'Date of Birth *',
+                          birthDateController,
+                          Icons.calendar_today,
+                          _birthDateError,
+                          TextInputType.text,
+                          hint: 'DD/MM/YYYY',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 15),
+                    _buildPhoneNumberFieldWithError(),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 25),
+
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.amber[50],
+                borderRadius: BorderRadius.circular(15),
+                border: Border.all(color: Colors.amber[200]!),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.amber,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.info,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 15),
+                      const Expanded(
+                        child: Text(
+                          'How to Withdraw Cash',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF1F0F46),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 15),
+                  _buildInstructionStep(1, 'Complete the form above'),
+                  _buildInstructionStep(2, 'Generate your withdrawal code'),
+                  _buildInstructionStep(3, 'Visit any exchange office'),
+                  _buildInstructionStep(4, 'Show your ID and withdrawal code'),
+                  _buildInstructionStep(5, 'Receive cash instantly'),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 25),
+
+            Container(
+              padding: const EdgeInsets.all(15),
+              decoration: BoxDecoration(
+                color: Colors.red[50],
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.red[100]!),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Important Information',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: Colors.red[800],
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _buildImportantInfo('Minimum withdrawal: \$10'),
+                  _buildImportantInfo('Maximum withdrawal per day: \$1,000'),
+                  _buildImportantInfo('Processing Time: 1-3 business days'),
+                  _buildImportantInfo('Valid ID required for collection'),
+                  _buildImportantInfo('Withdrawal code expires in 7 days'),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 25),
+
+            
+            if (_showErrors && (
+              _amountError != null || 
+              _fullNameError != null || 
+              _nationalIdError != null || 
+              _birthDateError != null || 
+              _phoneError != null
+            ))
               Container(
-                padding: const EdgeInsets.all(25),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red[50],
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.red[200]!),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.error_outline, color: Colors.red[800], size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Please fill in all required fields correctly',
+                        style: TextStyle(
+                          color: Colors.red[800],
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            const SizedBox(height: 15),
+
+            SizedBox(
+              width: double.infinity,
+              height: 55,
+              child: Container(
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
                     colors: [Color(0xFF1F0F46), Color(0xFF8A005D)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
                       color: const Color(0xFF8A005D).withOpacity(0.3),
-                      blurRadius: 15,
-                      offset: const Offset(0, 5),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
                     ),
                   ],
                 ),
-                child: Column(
-                  children: [
-                    const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.account_balance_wallet, color: Colors.white70, size: 20),
-                        SizedBox(width: 8),
-                        Text(
-                          'AVAILABLE BALANCE',
-                          style: TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      '\$${currentBalance.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 36,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                    const SizedBox(height: 15),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.white.withOpacity(0.2)),
-                      ),
+                child: Material(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: _processWithdrawal,
+                    child: const Center(
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          _buildBalanceStat('Daily Limit', '\$1,000.00'),
-                          _buildBalanceStat('Weekly Limit', '\$5,000.00'),
-                          _buildBalanceStat('Monthly Limit', '\$20,000.00'),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 30),
-
-              Card(
-                elevation: 3,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Row(
-                        children: [
-                          Icon(Icons.money_off, color: Color(0xFF8A005D)),
+                          Icon(Icons.qr_code, color: Colors.white, size: 22),
                           SizedBox(width: 10),
                           Text(
-                            'Withdrawal Amount',
+                            'Generate Withdrawal Code',
                             style: TextStyle(
                               fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF1F0F46),
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
                             ),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 15),
-                      const Divider(height: 1),
-
-                      const SizedBox(height: 20),
-                      TextFormField(
-                        controller: amountController,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        textAlign: TextAlign.center,
-                        validator: validateAmount,
-                        style: const TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF1F0F46),
-                        ),
-                        decoration: InputDecoration(
-                          hintText: '0.00',
-                          hintStyle: TextStyle(
-                            fontSize: 28,
-                            color: Colors.grey[400],
-                            fontWeight: FontWeight.w700,
-                          ),
-                          prefixIcon: const Icon(
-                            Icons.attach_money,
-                            color: Color(0xFF8A005D),
-                            size: 28,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                          filled: true,
-                          fillColor: Colors.grey[50],
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 20,
-                          ),
-                          suffixText: 'USD',
-                          suffixStyle: const TextStyle(
-                            color: Color(0xFF8A005D),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      const Text(
-                        'Quick Amounts',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF666666),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Wrap(
-                        spacing: 12,
-                        runSpacing: 12,
-                        children: ['50', '100', '200', '500', '1000'].map((amount) {
-                          return GestureDetector(
-                            onTap: () => onQuickAmountSelected(amount),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: 12,
-                              ),
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [Color(0xFF1F0F46), Color(0xFF8A005D)],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                borderRadius: BorderRadius.circular(10),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(0xFF8A005D).withOpacity(0.3),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              child: Text(
-                                '\$$amount',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 30),
-
-              Card(
-                elevation: 3,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Row(
-                        children: [
-                          Icon(Icons.person_outline, color: Color(0xFF8A005D)),
                           SizedBox(width: 10),
-                          Text(
-                            'Personal Information',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF1F0F46),
-                            ),
-                          ),
+                          Icon(Icons.arrow_forward, color: Colors.white, size: 20),
                         ],
                       ),
-                      const SizedBox(height: 15),
-                      const Divider(height: 1),
-
-                      const SizedBox(height: 20),
-                      _buildFormField(
-                        'Full Name *',
-                        fullNameController,
-                        Icons.person,
-                        validator: validateFullName,
-                      ),
-                      const SizedBox(height: 15),
-                      _buildFormField(
-                        'National ID Number *',
-                        nationalIdController,
-                        Icons.credit_card,
-                        validator: validateNationalID,
-                      ),
-                      const SizedBox(height: 15),
-                      GestureDetector(
-                        onTap: selectBirthDate,
-                        child: AbsorbPointer(
-                          child: _buildFormField(
-                            'Date of Birth *',
-                            birthDateController,
-                            Icons.calendar_today,
-                            hint: 'DD/MM/YYYY',
-                            validator: validateBirthDate,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 15),
-                      _buildPhoneNumberField(),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 25),
-
-              Card(
-                elevation: 3,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Row(
-                        children: [
-                          Icon(Icons.account_balance, color: Color(0xFF8A005D)),
-                          SizedBox(width: 10),
-                          Text(
-                            'Withdrawal Location',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF1F0F46),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 15),
-                      const Divider(height: 1),
-
-                      const SizedBox(height: 20),
-                      const Text(
-                        'Select Agent Type',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF555555),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        children: agentTypes.map((type) {
-                          final isSelected = selectedAgentType == type;
-                          return GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                selectedAgentType = type;
-                              });
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 12,
-                              ),
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? const Color(0xFF8A005D).withOpacity(0.1)
-                                    : Colors.white,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: isSelected
-                                      ? const Color(0xFF8A005D)
-                                      : Colors.grey[300]!,
-                                  width: isSelected ? 2 : 1,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.05),
-                                    blurRadius: 5,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    _getAgentIcon(type),
-                                    color: isSelected
-                                        ? const Color(0xFF8A005D)
-                                        : Colors.grey[600],
-                                    size: 18,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    type,
-                                    style: TextStyle(
-                                      color: isSelected
-                                          ? const Color(0xFF8A005D)
-                                          : Colors.grey[700],
-                                      fontWeight: isSelected
-                                          ? FontWeight.w600
-                                          : FontWeight.w500,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 25),
-
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.amber[50],
-                  borderRadius: BorderRadius.circular(15),
-                  border: Border.all(color: Colors.amber[200]!),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.amber,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(
-                            Icons.info,
-                            color: Colors.white,
-                            size: 24,
-                          ),
-                        ),
-                        const SizedBox(width: 15),
-                        const Expanded(
-                          child: Text(
-                            'How to Withdraw Cash',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF1F0F46),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 15),
-                    _buildInstructionStep(1, 'Complete the form above'),
-                    _buildInstructionStep(2, 'Generate your withdrawal code'),
-                    _buildInstructionStep(3, 'Visit any ${selectedAgentType ?? 'exchange agent'}'),
-                    _buildInstructionStep(4, 'Show your ID and withdrawal code'),
-                    _buildInstructionStep(5, 'Receive cash instantly'),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 25),
-
-              Container(
-                padding: const EdgeInsets.all(15),
-                decoration: BoxDecoration(
-                  color: Colors.red[50],
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.red[100]!),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Important Information',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: Colors.red[800],
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    _buildImportantInfo('Minimum withdrawal: \$10'),
-                    _buildImportantInfo('Maximum withdrawal per day: \$1,000'),
-                    _buildImportantInfo('Processing Time: 1-3 business days'),
-                    _buildImportantInfo('Valid ID required for collection'),
-                    _buildImportantInfo('Withdrawal code expires in 7 days'),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 30),
-
-              SizedBox(
-                width: double.infinity,
-                height: 55,
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF1F0F46), Color(0xFF8A005D)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF8A005D).withOpacity(0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Material(
-                    color: Colors.transparent,
-                    borderRadius: BorderRadius.circular(12),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: () {
-                        if (_formKey.currentState!.validate()) {
-                          _showWithdrawalCodeDialog();
-                        }
-                      },
-                      child: const Center(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.qr_code, color: Colors.white, size: 22),
-                            SizedBox(width: 10),
-                            Text(
-                              'Generate Withdrawal Code',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                              ),
-                            ),
-                            SizedBox(width: 10),
-                            Icon(Icons.arrow_forward, color: Colors.white, size: 20),
-                          ],
-                        ),
-                      ),
                     ),
                   ),
                 ),
               ),
+            ),
 
-              const SizedBox(height: 20),
+            const SizedBox(height: 20),
 
-              Container(
-                padding: const EdgeInsets.all(15),
-                decoration: BoxDecoration(
-                  color: Colors.grey[50],
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey[200]!),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Need Help?',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF1F0F46),
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    _buildContactInfo('Customer Support: +962 123 456 789'),
-                    _buildContactInfo('Email: support@rently.com'),
-                    _buildContactInfo('Working Hours: 9 AM - 5 PM'),
-                    _buildContactInfo('Emergency: 24/7 hotline available'),
-                  ],
-                ),
+            Container(
+              padding: const EdgeInsets.all(15),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey[200]!),
               ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Need Help?',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1F0F46),
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  _buildContactInfo('Customer Support: +962 123 456 789'),
+                  _buildContactInfo('Email: support@rently.com'),
+                  _buildContactInfo('Working Hours: 9 AM - 5 PM'),
+                  _buildContactInfo('Emergency: 24/7 hotline available'),
+                ],
+              ),
+            ),
 
-              const SizedBox(height: 30),
-            ],
-          ),
+            const SizedBox(height: 30),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildPhoneNumberField() {
+  Widget _buildFormFieldWithError(
+    String label,
+    TextEditingController controller,
+    IconData icon,
+    String? error,
+    TextInputType keyboardType, {
+    String? hint,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey[700],
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          keyboardType: keyboardType,
+          decoration: InputDecoration(
+            hintText: hint ?? label,
+            prefixIcon: Icon(icon, color: const Color(0xFF8A005D)),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            filled: true,
+            fillColor: Colors.grey[50],
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 16,
+            ),
+          ),
+        ),
+        if (_showErrors && error != null)
+          _buildErrorText(error),
+      ],
+    );
+  }
+
+  Widget _buildPhoneNumberFieldWithError() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -779,11 +857,10 @@ class CashWithdrawalPageState extends State<CashWithdrawalPage> {
           ),
         ),
         const SizedBox(height: 8),
-        TextFormField(
+        TextField(
           controller: phoneController,
           keyboardType: TextInputType.phone,
           maxLength: 10,
-          validator: validatePhoneNumber,
           decoration: InputDecoration(
             hintText: '77 123 4567',
             prefixIcon: const Icon(
@@ -808,6 +885,8 @@ class CashWithdrawalPageState extends State<CashWithdrawalPage> {
             fontWeight: FontWeight.w600,
           ),
         ),
+        if (_showErrors && _phoneError != null)
+          _buildErrorText(_phoneError!),
         const SizedBox(height: 5),
         Padding(
           padding: const EdgeInsets.only(left: 4.0),
@@ -820,6 +899,32 @@ class CashWithdrawalPageState extends State<CashWithdrawalPage> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildErrorText(String error) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8.0, left: 4.0),
+      child: Row(
+        children: [
+          Icon(
+            Icons.error_outline,
+            color: Colors.red[800],
+            size: 16,
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              error,
+              style: TextStyle(
+                color: Colors.red[800],
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      )
     );
   }
 
@@ -845,67 +950,6 @@ class CashWithdrawalPageState extends State<CashWithdrawalPage> {
         ),
       ],
     );
-  }
-
-  Widget _buildFormField(
-    String label,
-    TextEditingController controller,
-    IconData icon, {
-    String? hint,
-    String? Function(String?)? validator,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: Colors.grey[700],
-          ),
-        ),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: controller,
-          keyboardType: label.contains('Number') || label.contains('ID')
-              ? TextInputType.number
-              : TextInputType.text,
-          validator: validator,
-          decoration: InputDecoration(
-            hintText: hint ?? label,
-            prefixIcon: Icon(icon, color: const Color(0xFF8A005D)),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
-            ),
-            filled: true,
-            fillColor: Colors.grey[50],
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 16,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  IconData _getAgentIcon(String type) {
-    switch (type) {
-      case 'Exchange Office':
-        return Icons.money;
-      case 'Bank Branch':
-        return Icons.account_balance;
-      case 'Western Union':
-        return Icons.language;
-      case 'MoneyGram':
-        return Icons.send;
-      case 'Local Agent':
-        return Icons.store;
-      default:
-        return Icons.location_on;
-    }
   }
 
   Widget _buildInstructionStep(int number, String text) {
@@ -943,7 +987,7 @@ class CashWithdrawalPageState extends State<CashWithdrawalPage> {
             ),
           ),
         ],
-      ),
+      )
     );
   }
 
@@ -969,7 +1013,7 @@ class CashWithdrawalPageState extends State<CashWithdrawalPage> {
             ),
           ),
         ],
-      ),
+      )
     );
   }
 
@@ -992,8 +1036,24 @@ class CashWithdrawalPageState extends State<CashWithdrawalPage> {
             ),
           ),
         ],
-      ),
+      )
     );
+  }
+
+  void _processWithdrawal() {
+    _validateAndShowErrors();
+    
+    final hasErrors = _amountError != null || 
+                     _fullNameError != null || 
+                     _nationalIdError != null || 
+                     _birthDateError != null || 
+                     _phoneError != null;
+    
+    if (hasErrors) {
+      return;
+    }
+    
+    _showWithdrawalCodeDialog();
   }
 
   void _showWithdrawalCodeDialog() {
@@ -1037,14 +1097,6 @@ class CashWithdrawalPageState extends State<CashWithdrawalPage> {
               ),
               const SizedBox(height: 10),
               Text(
-                'Agent: $selectedAgentType',
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF555555),
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
                 'Full Name: ${fullNameController.text}',
                 style: const TextStyle(
                   fontSize: 14,
@@ -1068,7 +1120,7 @@ class CashWithdrawalPageState extends State<CashWithdrawalPage> {
                   border: Border.all(color: Colors.amber[200]!),
                 ),
                 child: const Text(
-                  'Present this code with your ID at the agent location within 7 days.',
+                  'Present this code with your ID at any exchange office within 7 days.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 13,
