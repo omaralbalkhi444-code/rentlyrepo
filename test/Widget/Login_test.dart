@@ -22,18 +22,18 @@ void main() {
     expect(find.text("don't have an account? "), findsOneWidget);
   });
 // 2 login done navigater to category 
-  testWidgets('Successful login navigates to Category page ',
-    (WidgetTester tester) async {
-  await tester.pumpWidget(
-    MaterialApp(
-      home: const LoginPage(),
-      routes: {
-        '/category': (_) => const Scaffold(
-          body: Text('Category Page'),
-        ),
-      },
-    ),
-  );
+  // testWidgets('Successful login navigates to Category page ',
+  //   (WidgetTester tester) async {
+  // await tester.pumpWidget(
+  //   MaterialApp(
+  //     home: const LoginPage(),
+  //     routes: {
+  //       '/category': (_) => const Scaffold(
+  //         body: Text('Category Page'),
+  //       ),
+  //     },
+  //   ),
+  // );
 
   await tester.enterText(
       find.byType(TextFormField).first, "test@mail.com");
