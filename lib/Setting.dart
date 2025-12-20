@@ -1,8 +1,9 @@
+
 import 'package:flutter/material.dart';
 import 'package:p2/AddItemPage%20.dart';
 import 'package:p2/Chats_Page.dart';
 import 'package:p2/WalletPage.dart';
-
+import 'package:p2/logic/setting_logic.dart';
 import 'Orders.dart';
 import 'Categories_Page.dart';
 import 'app_locale.dart';
@@ -23,8 +24,7 @@ class SettingPage extends StatefulWidget {
 }
 
 class _SettingPageState extends State<SettingPage> {
-  bool muteNotifications = false;
-  bool appAppearance = false;
+  final SettingLogic _logic = SettingLogic();
 
   @override
   Widget build(BuildContext context) {
@@ -187,10 +187,10 @@ class _SettingPageState extends State<SettingPage> {
                       },
                     ),
                     SwitchListTile(
-                      value: muteNotifications,
+                      value: _logic.muteNotifications,
                       onChanged: (val) {
                         setState(() {
-                          muteNotifications = val;
+                          _logic.updateSettings(val, _logic.appAppearance);
                         });
                       },
                       title: const Text("Mute Notifications"),
@@ -201,10 +201,10 @@ class _SettingPageState extends State<SettingPage> {
                       ),
                     ),
                     SwitchListTile(
-                      value: appAppearance,
+                      value: _logic.appAppearance,
                       onChanged: (val) {
                         setState(() {
-                          appAppearance = val;
+                          _logic.updateSettings(_logic.muteNotifications, val);
                         });
                       },
                       title: const Text("App Appearance"),
@@ -282,4 +282,3 @@ class SideCurveClipper extends CustomClipper<Path> {
   @override
   bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }
-
