@@ -1,4 +1,6 @@
+
 import 'package:flutter/material.dart';
+import 'package:p2/logic/transaction_history_logic.dart';
 
 class TransactionHistoryPage extends StatefulWidget {
   final List<Map<String, dynamic>> transactions;
@@ -13,32 +15,12 @@ class TransactionHistoryPage extends StatefulWidget {
 }
 
 class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
-  String filter = 'All';
+  late TransactionHistoryLogic logic; 
 
-  List<Map<String, dynamic>> get filteredTransactions {
-    if (filter == 'Deposits') {
-      return widget.transactions.where((t) => t['type'] == 'deposit').toList();
-    } else if (filter == 'Withdrawals') {
-      return widget.transactions.where((t) => t['type'] == 'withdrawal').toList();
-    } else {
-      return widget.transactions;
-    }
-  }
-
-  double get totalDeposits {
-    return widget.transactions
-        .where((t) => t['type'] == 'deposit')
-        .fold(0.0, (sum, t) => sum + t['amount']);
-  }
-
-  double get totalWithdrawals {
-    return widget.transactions
-        .where((t) => t['type'] == 'withdrawal')
-        .fold(0.0, (sum, t) => sum + t['amount']);
-  }
-
-  double get currentBalance {
-    return totalDeposits - totalWithdrawals;
+  @override
+  void initState() {
+    super.initState();
+    logic = TransactionHistoryLogic(transactions: widget.transactions); 
   }
 
   @override
@@ -53,156 +35,89 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
       ),
       body: Column(
         children: [
-          // إحصائيات الرصيد
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF1F0F46), Color(0xFF8A005D)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+          
+          _buildBalanceStats(),
+          
+      
+          _buildFilterButtons(),
+          
+  
+          _buildTransactionCounter(),
+          
+
+          _buildTransactionList(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBalanceStats() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF1F0F46), Color(0xFF8A005D)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Current Balance',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-            ),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Current Balance',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    Text(
-                      '\$${currentBalance.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
+              Text(
+                '\$${logic.formatBalance(logic.currentBalance)}', 
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
                 ),
-                const SizedBox(height: 15),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _buildStatItem('Total Deposits', totalDeposits, Colors.green),
-                    _buildStatItem('Total Withdrawals', totalWithdrawals, Colors.orange),
-                  ],
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-
-          // فلاتر
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildFilterButton('All'),
-                _buildFilterButton('Deposits'),
-                _buildFilterButton('Withdrawals'),
-              ],
-            ),
-          ),
-
-          // عداد المعاملات
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  filter == 'All' 
-                    ? 'All Transactions' 
-                    : filter == 'Deposits' 
-                      ? 'All Deposits' 
-                      : 'All Withdrawals',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1F0F46),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF8A005D).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    '${filteredTransactions.length} transactions',
-                    style: const TextStyle(
-                      color: Color(0xFF8A005D),
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // قائمة المعاملات
-          Expanded(
-            child: filteredTransactions.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.history_toggle_off,
-                          size: 80,
-                          color: Colors.grey[300],
-                        ),
-                        const SizedBox(height: 20),
-                        Text(
-                          filter == 'All'
-                              ? 'No transactions yet'
-                              : 'No ${filter.toLowerCase()} transactions',
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: Colors.grey[600],
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          'Your transaction history will appear here',
-                          style: TextStyle(
-                            color: Colors.grey[500],
-                            fontSize: 14,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    itemCount: filteredTransactions.length,
-                    itemBuilder: (context, index) {
-                      final transaction = filteredTransactions[index];
-                      return _buildTransactionItem(transaction);
-                    },
-                  ),
+          const SizedBox(height: 15),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildStatItem('Total Deposits', logic.totalDeposits, Colors.green),
+              _buildStatItem('Total Withdrawals', logic.totalWithdrawals, Colors.orange),
+            ],
           ),
         ],
       ),
     );
   }
 
+  Widget _buildFilterButtons() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildFilterButton('All'),
+          _buildFilterButton('Deposits'),
+          _buildFilterButton('Withdrawals'),
+        ],
+      ),
+    );
+  }
+
   Widget _buildFilterButton(String text) {
-    final isSelected = filter == text;
+    final isSelected = logic.isFilterActive(text); 
+    
     return GestureDetector(
       onTap: () {
         setState(() {
-          filter = text;
+          logic.setFilter(text); 
         });
       },
       child: Container(
@@ -222,37 +137,96 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
     );
   }
 
-  Widget _buildStatItem(String label, double amount, Color color) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            color: Colors.white70,
-            fontSize: 14,
+  Widget _buildTransactionCounter() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            logic.filterDisplayName,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF1F0F46),
+            ),
           ),
-        ),
-        const SizedBox(height: 5),
-        Text(
-          '\$${amount.toStringAsFixed(2)}',
-          style: TextStyle(
-            color: color,
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xFF8A005D).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              '${logic.filteredTransactionCount} transactions',
+              style: const TextStyle(
+                color: Color(0xFF8A005D),
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
+              ),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTransactionList() {
+    return Expanded(
+      child: !logic.hasFilteredTransactions() 
+          ? _buildEmptyState()
+          : ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              itemCount: logic.filteredTransactions.length, 
+              itemBuilder: (context, index) {
+                final transaction = logic.filteredTransactions[index];
+                return _buildTransactionItem(transaction);
+              },
+            ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.history_toggle_off,
+            size: 80,
+            color: Colors.grey[300],
+          ),
+          const SizedBox(height: 20),
+          Text(
+            logic.filter == 'All'
+                ? 'No transactions yet'
+                : 'No ${logic.filter.toLowerCase()} transactions', 
+            style: TextStyle(
+              fontSize: 18,
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Your transaction history will appear here',
+            style: TextStyle(
+              color: Colors.grey[500],
+              fontSize: 14,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildTransactionItem(Map<String, dynamic> transaction) {
     final isDeposit = transaction['type'] == 'deposit';
-    final statusColor = transaction['status'] == 'Completed' 
-        ? Colors.green 
-        : transaction['status'] == 'Processing' 
-          ? Colors.orange 
-          : Colors.red;
+    final statusColor = logic.getStatusColor(transaction['status']); 
+    final typeColor = logic.getTypeColor(transaction['type']); 
+    final typeIcon = logic.getTypeIcon(transaction['type']); 
+    final typeDisplayName = logic.getTypeDisplayName(transaction['type']); 
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -260,25 +234,23 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
         padding: const EdgeInsets.all(16.0),
         child: Row(
           children: [
-            // أيقونة
+          
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: isDeposit 
-                    ? Colors.green.withOpacity(0.1) 
-                    : Colors.red.withOpacity(0.1),
+                color: typeColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(
-                transaction['icon'] ?? Icons.receipt,
-                color: isDeposit ? Colors.green : Colors.red,
+                typeIcon,
+                color: typeColor,
                 size: 24,
               ),
             ),
             
             const SizedBox(width: 15),
             
-            // معلومات المعاملة
+          
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -287,7 +259,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        isDeposit ? 'Wallet Recharge' : 'Cash Withdrawal',
+                        typeDisplayName,
                         style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 16,
@@ -295,9 +267,9 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
                         ),
                       ),
                       Text(
-                        '${isDeposit ? '+' : '-'}\$${transaction['amount'].toStringAsFixed(2)}',
+                        '${isDeposit ? '+' : '-'}\$${logic.formatAmount(transaction['amount'] as double)}', 
                         style: TextStyle(
-                          color: isDeposit ? Colors.green : Colors.red,
+                          color: typeColor,
                           fontWeight: FontWeight.w700,
                           fontSize: 16,
                         ),
@@ -306,7 +278,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${transaction['date']} • ${transaction['time']}',
+                    logic.formatDateTime(transaction['date'] as String, transaction['time'] as String),
                     style: const TextStyle(
                       color: Colors.grey,
                       fontSize: 13,
@@ -341,7 +313,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          _getStatusIcon(transaction['status']),
+                          logic.getStatusIcon(transaction['status']), 
                           size: 12,
                           color: statusColor,
                         ),
@@ -366,16 +338,27 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
     );
   }
 
-  IconData _getStatusIcon(String status) {
-    switch (status) {
-      case 'Completed':
-        return Icons.check_circle;
-      case 'Processing':
-        return Icons.timelapse;
-      case 'Failed':
-        return Icons.error;
-      default:
-        return Icons.info;
-    }
+  Widget _buildStatItem(String label, double amount, Color color) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white70,
+            fontSize: 14,
+          ),
+        ),
+        const SizedBox(height: 5),
+        Text(
+          '\$${logic.formatAmount(amount)}', 
+          style: TextStyle(
+            color: color,
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
   }
 }
