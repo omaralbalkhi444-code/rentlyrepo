@@ -1,5 +1,8 @@
+
 import 'package:flutter/material.dart';
-import 'ProductListPage.dart';
+import 'package:p2/ProductListPage.dart';
+import 'package:p2/logic/sub_category_logic.dart';
+
 
 class SubCategoryPage extends StatelessWidget {
   final String categoryId;
@@ -11,47 +14,10 @@ class SubCategoryPage extends StatelessWidget {
     required this.categoryTitle,
   });
 
-  static final Map<String, List<Map<String, dynamic>>> subCategories = {
-    "c1": [
-      {"title": "Cameras & Photography", "icon": Icons.photo_camera},
-      {"title": "Audio & Video", "icon": Icons.speaker},
-    ],
-    "c2": [
-      {"title": "Mobiles", "icon": Icons.phone_android},
-      {"title": "Laptops", "icon": Icons.laptop_mac},
-      {"title": "Printers", "icon": Icons.print},
-      {"title": "Projectors", "icon": Icons.video_camera_back},
-      {"title": "Servers", "icon": Icons.dns},
-    ],
-    "c3": [
-      {"title": "Gaming Devices", "icon": Icons.sports_esports},
-    ],
-    "c4": [
-      {"title": "Bicycles", "icon": Icons.pedal_bike},
-      {"title": "Books", "icon": Icons.menu_book},
-      {"title": "Skates & Scooters", "icon": Icons.roller_skating_outlined},
-      {"title": "Camping", "icon": Icons.park},
-    ],
-    "c5": [
-      {"title": "Maintenance Tools", "icon": Icons.build},
-      {"title": "Medical Devices", "icon": Icons.monitor_heart},
-      {"title": "Cleaning Equipment", "icon": Icons.cleaning_services},
-    ],
-    "c6": [
-      {"title": "Garden Equipment", "icon": Icons.yard_outlined},
-      {"title": "Home Supplies", "icon": Icons.home},
-    ],
-    "c7": [
-      {"title": "Men", "icon": Icons.man},
-      {"title": "Women", "icon": Icons.woman},
-      {"title": "Customs", "icon": Icons.checkroom},
-      {"title": "Baby Supplies", "icon": Icons.child_friendly},
-    ],
-  };
-
   @override
   Widget build(BuildContext context) {
-    final subs = subCategories[categoryId] ?? [];
+ 
+    final subCategories = SubCategoryLogic.getSubCategories(categoryId);
 
     return Scaffold(
       body: SafeArea(
@@ -96,7 +62,7 @@ class SubCategoryPage extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.all(12),
                 child: GridView.builder(
-                  itemCount: subs.length,
+                  itemCount: subCategories.length,
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
                     mainAxisSpacing: 12,
@@ -104,7 +70,7 @@ class SubCategoryPage extends StatelessWidget {
                     childAspectRatio: 1,
                   ),
                   itemBuilder: (context, index) {
-                    final sub = subs[index];
+                    final sub = subCategories[index];
 
                     return GestureDetector(
                       onTap: () {
@@ -125,10 +91,14 @@ class SubCategoryPage extends StatelessWidget {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(sub["icon"], size: 55, color: Color(0xFF8A005D)),
-                            SizedBox(height: 10),
+                            Icon(
+                              sub["icon"] as IconData, 
+                              size: 55, 
+                              color: const Color(0xFF8A005D)
+                            ),
+                            const SizedBox(height: 10),
                             Text(
-                              sub["title"],
+                              sub["title"] as String,
                               textAlign: TextAlign.center,
                               style: const TextStyle(
                                 fontSize: 16,
@@ -153,23 +123,25 @@ class SubCategoryPage extends StatelessWidget {
 class SideCurveClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
-    double radius = 40;
-    Path path = Path();
+    const radius = 40.0;
+    final path = Path();
+    
     path.moveTo(0, 0);
     path.lineTo(0, size.height);
     path.arcToPoint(
       Offset(radius, size.height - radius),
-      radius: Radius.circular(radius),
+      radius: const Radius.circular(radius),
       clockwise: true,
     );
     path.lineTo(size.width - radius, size.height - radius);
     path.arcToPoint(
       Offset(size.width, size.height),
-      radius: Radius.circular(radius),
+      radius: const Radius.circular(radius),
       clockwise: true,
     );
     path.lineTo(size.width, 0);
     path.close();
+    
     return path;
   }
 
