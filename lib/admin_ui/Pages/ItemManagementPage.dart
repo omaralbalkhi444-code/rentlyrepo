@@ -45,6 +45,8 @@ class ItemManagementPage extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 10),
+
+                  ///  (Counter)
                   TabBar(
                     indicator: BoxDecoration(
                       color: Colors.white.withOpacity(0.2),
@@ -53,7 +55,16 @@ class ItemManagementPage extends StatelessWidget {
                     labelColor: Colors.white,
                     unselectedLabelColor: Colors.white70,
                     tabs: const [
-                      Tab(text: "Pending Items"),
+                      Tab(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text("Pending Items"),
+                            SizedBox(width: 6),
+                            PendingItemsCounter(),
+                          ],
+                        ),
+                      ),
                       Tab(text: "Rejected Items"),
                       Tab(text: "Approved Items"),
                     ],
@@ -74,6 +85,46 @@ class ItemManagementPage extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// ---------------------------------------------------------------------------
+/// COUNTER 
+/// ---------------------------------------------------------------------------
+
+class PendingItemsCounter extends StatelessWidget {
+  const PendingItemsCounter({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection("pending_items")
+          .where("status", isEqualTo: "pending")
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const SizedBox();
+
+        final count = snapshot.data!.docs.length;
+        if (count == 0) return const SizedBox();
+
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: Colors.red,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            count.toString(),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -109,7 +160,6 @@ class ItemExpansionCard extends StatelessWidget {
       color: const Color(0xFFF5F1FF),
       child: ExpansionTile(
         tilePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-
         title: Row(
           children: [
             Expanded(
@@ -131,38 +181,32 @@ class ItemExpansionCard extends StatelessWidget {
             actions,
           ],
         ),
-
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                /// DESCRIPTION
                 Text("Description: ${data["description"] ?? ""}",
                     style: const TextStyle(fontSize: 14)),
                 const SizedBox(height: 10),
-
-                /// OWNER ID
                 Text("Owner ID: ${data["ownerId"] ?? ""}",
                     style: const TextStyle(fontSize: 13)),
                 const SizedBox(height: 10),
 
-                /// LOCATION (shown for all item states)
                 if (latitude != null && longitude != null) ...[
                   const Text("Location:",
                       style:
-                      TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                          TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
                   Text("• Latitude: $latitude"),
                   Text("• Longitude: $longitude"),
                   const SizedBox(height: 12),
                 ],
 
-                /// IMAGES
                 if (images.isNotEmpty) ...[
                   const Text("Images:",
                       style:
-                      TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                          TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 6),
                   SizedBox(
                     height: 120,
@@ -186,48 +230,43 @@ class ItemExpansionCard extends StatelessWidget {
                   const SizedBox(height: 15),
                 ],
 
-                /// RENTAL PERIODS
                 if (rental.isNotEmpty) ...[
                   const Text("Rental Periods:",
                       style:
-                      TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                          TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: rental.entries.map(
-                          (entry) => Padding(
+                    children: rental.entries.map((entry) {
+                      return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 2),
                         child: Text(
                           "• ${entry.key}: JOD ${entry.value}",
                           style: const TextStyle(fontSize: 14),
                         ),
-                      ),
-                    ).toList(),
+                      );
+                    }).toList(),
                   ),
                   const SizedBox(height: 12),
                 ],
 
-                /// RATINGS & REVIEWS (only for approved items)
                 if (data["status"] == "approved") ...[
                   const Divider(),
                   const Text("Rating:",
                       style:
-                      TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                          TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
                   Text("⭐ ${rating.toStringAsFixed(1)} / 5.0"),
                   const SizedBox(height: 10),
-
                   const Text("Reviews:",
                       style:
-                      TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                          TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
                   if (reviews.isEmpty)
                     const Text("No reviews yet."),
                   ...reviews.map((r) => Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text("• ${r["review"]} (⭐ ${r["rating"]})"),
-                  )),
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text("• ${r["review"]} (⭐ ${r["rating"]})"),
+                      )),
                 ],
-
-                const SizedBox(height: 10),
               ],
             ),
           ),
@@ -241,7 +280,6 @@ class ItemExpansionCard extends StatelessWidget {
 /// TABS
 /// ---------------------------------------------------------------------------
 
-/// ---------- PENDING ----------
 class PendingItemsTab extends StatelessWidget {
   const PendingItemsTab({super.key});
 
@@ -262,7 +300,6 @@ class PendingItemsTab extends StatelessWidget {
         return ListView(
           children: docs.map((doc) {
             final data = doc.data() as Map<String, dynamic>;
-
             return ItemExpansionCard(
               data: data,
               itemId: doc.id,
@@ -273,7 +310,6 @@ class PendingItemsTab extends StatelessWidget {
                       await FirebaseFunctions.instance
                           .httpsCallable("approveItem")
                           .call({"itemId": doc.id});
-
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text("Item Approved")),
                       );
@@ -289,7 +325,6 @@ class PendingItemsTab extends StatelessWidget {
                       await FirebaseFunctions.instance
                           .httpsCallable("rejectItem")
                           .call({"itemId": doc.id});
-
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text("Item Rejected")),
                       );
@@ -297,7 +332,7 @@ class PendingItemsTab extends StatelessWidget {
                     icon: const Icon(Icons.close),
                     label: const Text("Reject"),
                     style:
-                    ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                        ElevatedButton.styleFrom(backgroundColor: Colors.red),
                   ),
                 ],
               ),
@@ -309,7 +344,6 @@ class PendingItemsTab extends StatelessWidget {
   }
 }
 
-/// ---------- REJECTED ----------
 class RejectedItemsTab extends StatelessWidget {
   const RejectedItemsTab({super.key});
 
@@ -343,7 +377,6 @@ class RejectedItemsTab extends StatelessWidget {
   }
 }
 
-/// ---------- APPROVED ----------
 class ApprovedItemsTab extends StatelessWidget {
   const ApprovedItemsTab({super.key});
 
@@ -365,7 +398,6 @@ class ApprovedItemsTab extends StatelessWidget {
         return ListView(
           children: docs.map((doc) {
             final data = doc.data() as Map<String, dynamic>;
-
             return ItemExpansionCard(
               data: data,
               itemId: doc.id,
