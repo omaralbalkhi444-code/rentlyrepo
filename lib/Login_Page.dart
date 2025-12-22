@@ -1,10 +1,9 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_custom_clippers/flutter_custom_clippers.dart';
 import 'package:p2/logic/login_logic.dart';
 import 'Categories_Page.dart';
 import 'app_locale.dart';
-
+import 'fake_uid.dart';   
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -53,9 +52,9 @@ class _LoginPageState extends State<LoginPage> {
       password: passwordController.text,
       onSuccess: (uid) {
         if (!mounted) return;
-        
-       
-        
+
+        LoginUID.uid = uid;
+
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const CategoryPage()),
@@ -63,9 +62,9 @@ class _LoginPageState extends State<LoginPage> {
       },
       onError: (error) {
         if (!mounted) return;
-        
+
         setState(() => _errorMessage = error);
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(error),
@@ -122,7 +121,6 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ],
             ),
-
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 20),
               child: Form(
@@ -131,20 +129,20 @@ class _LoginPageState extends State<LoginPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      "Login", 
+                      "Login",
                       style: TextStyle(
                           fontSize: 26, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 5),
                     Row(
                       children: [
-                        const Text("Don't have an account? "), 
+                        const Text("Don't have an account? "),
                         GestureDetector(
                           onTap: () {
                             Navigator.pushNamed(context, '/create');
                           },
                           child: const Text(
-                            "Sign up", 
+                            "Sign up",
                             style: TextStyle(
                               color: Colors.pink,
                               fontWeight: FontWeight.bold,
@@ -154,12 +152,10 @@ class _LoginPageState extends State<LoginPage> {
                       ],
                     ),
                     const SizedBox(height: 30),
-
-                  
                     TextFormField(
                       controller: emailController,
                       decoration: InputDecoration(
-                        labelText: "Email", 
+                        labelText: "Email",
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(30),
                         ),
@@ -167,13 +163,11 @@ class _LoginPageState extends State<LoginPage> {
                       validator: LoginLogic.validateEmail,
                     ),
                     const SizedBox(height: 20),
-
-                    
                     TextFormField(
                       controller: passwordController,
                       obscureText: _obscurePassword,
                       decoration: InputDecoration(
-                        labelText: "Password", 
+                        labelText: "Password",
                         suffixIcon: IconButton(
                           icon: Icon(
                             _obscurePassword
@@ -193,9 +187,7 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                       validator: LoginLogic.validatePassword,
                     ),
-
                     const SizedBox(height: 40),
-
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
@@ -203,11 +195,13 @@ class _LoginPageState extends State<LoginPage> {
                             ? const CircularProgressIndicator()
                             : ElevatedButton(
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF8A005D),
+                                  backgroundColor:
+                                      const Color(0xFF8A005D),
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 40, vertical: 12),
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(30),
+                                    borderRadius:
+                                        BorderRadius.circular(30),
                                   ),
                                 ),
                                 onPressed: login,
@@ -215,7 +209,8 @@ class _LoginPageState extends State<LoginPage> {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Text("Login",
-                                        style: TextStyle(color: Colors.white)),
+                                        style:
+                                            TextStyle(color: Colors.white)),
                                     SizedBox(width: 8),
                                     Icon(Icons.arrow_forward,
                                         color: Colors.white),
@@ -224,10 +219,11 @@ class _LoginPageState extends State<LoginPage> {
                               ),
                       ],
                     ),
-
                     if (_errorMessage != null) ...[
                       const SizedBox(height: 16),
-                      Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
+                      Text(_errorMessage!,
+                          style:
+                              const TextStyle(color: Colors.red)),
                     ],
                   ],
                 ),
