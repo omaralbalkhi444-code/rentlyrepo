@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'Categories_Page.dart';
 import 'Chats_Page.dart';
 import 'Orders.dart';
@@ -7,10 +11,8 @@ import 'Setting.dart';
 import 'owner_listings.dart';
 import 'fake_uid.dart';
 
-class SharedBottomNav extends StatelessWidget {
+class SharedBottomNav extends StatefulWidget {
   final int currentIndex;
-
-  
   final Function(int)? onTabChanged;
 
   const SharedBottomNav({
@@ -19,16 +21,65 @@ class SharedBottomNav extends StatelessWidget {
     this.onTabChanged,
   });
 
-  void _navigate(BuildContext context, int index) {
-    if (index == currentIndex) return;
+  @override
+  State<SharedBottomNav> createState() => _SharedBottomNavState();
+}
 
-    /// 
-    if (onTabChanged != null) {
-      onTabChanged!(index);
+class _SharedBottomNavState extends State<SharedBottomNav> {
+  bool showMyItemsDot = false;
+  StreamSubscription<QuerySnapshot>? _myItemsSub;
+   
+    bool _isFirstMyItemsLoad = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _listenToMyItemsChanges();
+  }
+
+  @override
+  void dispose() {
+    _myItemsSub?.cancel();
+    super.dispose();
+  }
+
+  void _listenToMyItemsChanges() {
+    _myItemsSub = FirebaseFirestore.instance
+        .collection("items")
+        .where("ownerId", isEqualTo: LoginUID.uid)
+        .snapshots()
+        .listen((snapshot) {
+      // إذا المستخدم داخل صفحة My Items → لا تظهر النقطة
+      if (widget.currentIndex == 4) return;
+
+      if (_isFirstMyItemsLoad) {
+        _isFirstMyItemsLoad = false;
+        return;
+        }
+
+        if (snapshot.docChanges.isNotEmpty && widget.currentIndex != 4) {
+          setState(() {
+          showMyItemsDot = true;
+        });
+      }
+    });
+  }
+
+  void _navigate(BuildContext context, int index) {
+    if (index == widget.currentIndex) return;
+
+    // لما يدخل My Items نشيل النقطة
+    if (index == 4) {
+      setState(() {
+        showMyItemsDot = false;
+      });
+    }
+
+    if (widget.onTabChanged != null) {
+      widget.onTabChanged!(index);
       return;
     }
 
-   
     switch (index) {
       case 0:
         Navigator.pushReplacement(
@@ -81,14 +132,14 @@ class SharedBottomNav extends StatelessWidget {
           _buildIcon(Icons.shopping_bag_outlined, 1, context),
           _buildIcon(Icons.home_outlined, 2, context),
           _buildChatIcon(context),
-          _buildIcon(Icons.storage_rounded, 4, context),
+          _buildMyItemsIcon(context),
         ],
       ),
     );
   }
 
   Widget _buildIcon(IconData icon, int index, BuildContext context) {
-    bool active = index == currentIndex;
+    bool active = index == widget.currentIndex;
 
     return GestureDetector(
       onTap: () => _navigate(context, index),
@@ -118,9 +169,9 @@ class SharedBottomNav extends StatelessWidget {
     );
   }
 
-  /// BADGE NUMBER
+  /// CHAT ICON WITH BADGE
   Widget _buildChatIcon(BuildContext context) {
-    bool active = currentIndex == 3;
+    bool active = widget.currentIndex == 3;
 
     return GestureDetector(
       onTap: () => _navigate(context, 3),
@@ -191,6 +242,56 @@ class SharedBottomNav extends StatelessWidget {
             ],
           );
         },
+      ),
+    );
+  }
+
+  /// 🟢 MY ITEMS ICON WITH GREEN DOT
+  Widget _buildMyItemsIcon(BuildContext context) {
+    bool active = widget.currentIndex == 4;
+
+    return GestureDetector(
+      onTap: () => _navigate(context, 4),
+      child: Stack(
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            margin: EdgeInsets.only(bottom: active ? 8 : 0),
+            padding: const EdgeInsets.all(12),
+            decoration: active
+                ? BoxDecoration(
+                    color: Colors.grey[300],
+                    shape: BoxShape.circle,
+                   boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.15),
+                          blurRadius: 6,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    )
+                : null,
+            child: Icon(
+              Icons.storage_rounded,
+              size: active ? 32 : 26,
+              color: active ? Colors.black : Colors.white70,
+            ),
+          ),
+
+          if (showMyItemsDot)
+            Positioned(
+              right: 6,
+              top: 6,
+              child: Container(
+                width: 10,
+                height: 10,
+                decoration: const BoxDecoration(
+                  color: Colors.green,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
