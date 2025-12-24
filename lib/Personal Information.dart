@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'rate_product_page.dart';
+import 'user_rate.dart'; // 
 
 class PersonalInfoPage extends StatefulWidget {
   const PersonalInfoPage({super.key});
@@ -79,121 +81,86 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
                       backgroundImage:
                           imageFile != null ? FileImage(imageFile!) : null,
                       child: imageFile == null
-                          ? const Icon(Icons.camera_alt, size: 40, color: Colors.white)
+                          ? const Icon(Icons.camera_alt,
+                              size: 40, color: Colors.white)
                           : null,
                     ),
                   ),
                   const SizedBox(height: 20),
-                  TextFormField(
+
+                  _buildField(
+                    label: 'Name',
+                    icon: Icons.person,
                     initialValue: name,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      labelText: 'Name',
-                      labelStyle: const TextStyle(color: Colors.white),
-                      prefixIcon: const Icon(Icons.person, color: Colors.white),
-                      enabledBorder: OutlineInputBorder(
-                        borderSide: const BorderSide(color: Colors.white70),
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderSide: const BorderSide(color: Colors.white),
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                    ),
-                    onChanged: (val) => name = val,
+                    onChanged: (v) => name = v,
                   ),
                   const SizedBox(height: 15),
-                  TextFormField(
+                  _buildField(
+                    label: 'Email',
+                    icon: Icons.email,
                     initialValue: email,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      labelText: 'Email',
-                      labelStyle: const TextStyle(color: Colors.white),
-                      prefixIcon: const Icon(Icons.email, color: Colors.white),
-                      enabledBorder: OutlineInputBorder(
-                        borderSide: const BorderSide(color: Colors.white70),
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderSide: const BorderSide(color: Colors.white),
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                    ),
-                    onChanged: (val) => email = val,
+                    onChanged: (v) => email = v,
                   ),
                   const SizedBox(height: 15),
-                  TextFormField(
+                  _buildField(
+                    label: 'Password',
+                    icon: Icons.lock,
                     initialValue: password,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      labelText: 'Password',
-                      labelStyle: const TextStyle(color: Colors.white),
-                      prefixIcon: const Icon(Icons.lock, color: Colors.white),
-                      enabledBorder: OutlineInputBorder(
-                        borderSide: const BorderSide(color: Colors.white70),
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderSide: const BorderSide(color: Colors.white),
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                    ),
-                    obscureText: true,
-                    onChanged: (val) => password = val,
+                    obscure: true,
+                    onChanged: (v) => password = v,
                   ),
                   const SizedBox(height: 15),
-                  TextFormField(
+                  _buildField(
+                    label: 'Phone Number',
+                    icon: Icons.phone,
                     initialValue: phone,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      labelText: 'Phone Number',
-                      labelStyle: const TextStyle(color: Colors.white),
-                      prefixIcon: const Icon(Icons.phone, color: Colors.white),
-                      enabledBorder: OutlineInputBorder(
-                        borderSide: const BorderSide(color: Colors.white70),
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderSide: const BorderSide(color: Colors.white),
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                    ),
-                    keyboardType: TextInputType.phone,
-                    onChanged: (val) => phone = val,
+                    keyboard: TextInputType.phone,
+                    onChanged: (v) => phone = v,
                   ),
+
                   const SizedBox(height: 30),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(25),
+
+                  // Save Information
+                  _gradientButton(
+                    text: 'Save Information',
+                    onPressed: () async {
+                      await saveUserData();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text('Information saved!')),
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 15),
+                  // Rate Product
+                  _simpleButton(
+                    text: 'Rate Product',
+                    color: Colors.orange,
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const RateProductPage(),
                         ),
-                        padding: const EdgeInsets.all(0),
-                      ),
-                      onPressed: () async {
-                        await saveUserData();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Information saved!')),
-                        );
-                      },
-                      child: Ink(
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [Color(0xFF1F0F46), Color(0xFF8A005D)],
-                          ),
-                          borderRadius: BorderRadius.all(Radius.circular(25)),
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // User Rate (NEW)
+                  _simpleButton(
+                    text: 'User Rate',
+                    color: Colors.green,
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const UserRatePage(),
                         ),
-                        child: Container(
-                          alignment: Alignment.center,
-                          child: const Text(
-                            'Save Information',
-                            style: TextStyle(fontSize: 18, color: Colors.white),
-                          ),
-                        ),
-                      ),
-                    ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -208,5 +175,94 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
       ),
     );
   }
-}
 
+  // ===== Helper Widgets =====
+
+  Widget _buildField({
+    required String label,
+    required IconData icon,
+    required String initialValue,
+    required Function(String) onChanged,
+    bool obscure = false,
+    TextInputType keyboard = TextInputType.text,
+  }) {
+    return TextFormField(
+      initialValue: initialValue,
+      obscureText: obscure,
+      keyboardType: keyboard,
+      style: const TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(color: Colors.white),
+        prefixIcon: Icon(icon, color: Colors.white),
+        enabledBorder: OutlineInputBorder(
+          borderSide: const BorderSide(color: Colors.white70),
+          borderRadius: BorderRadius.circular(15),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderSide: const BorderSide(color: Colors.white),
+          borderRadius: BorderRadius.circular(15),
+        ),
+      ),
+      onChanged: onChanged,
+    );
+  }
+
+  Widget _gradientButton({
+    required String text,
+    required VoidCallback onPressed,
+  }) {
+    return SizedBox(
+      width: double.infinity,
+      height: 50,
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(25),
+          ),
+          padding: EdgeInsets.zero,
+        ),
+        onPressed: onPressed,
+        child: Ink(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF1F0F46), Color(0xFF8A005D)],
+            ),
+            borderRadius: BorderRadius.all(Radius.circular(25)),
+          ),
+          child: Container(
+            alignment: Alignment.center,
+            child: Text(
+              text,
+              style: const TextStyle(fontSize: 18, color: Colors.white),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _simpleButton({
+    required String text,
+    required Color color,
+    required VoidCallback onPressed,
+  }) {
+    return SizedBox(
+      width: double.infinity,
+      height: 50,
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(25),
+          ),
+        ),
+        onPressed: onPressed,
+        child: Text(
+          text,
+          style: const TextStyle(fontSize: 18, color: Colors.white),
+        ),
+      ),
+    );
+  }
+}
