@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:overlay_support/overlay_support.dart';
-import 'Item.dart';
+import 'models/Item.dart';
 import 'sub_category_page.dart';
 import 'Categories_Page.dart';
 import 'Rently_Logo.dart';

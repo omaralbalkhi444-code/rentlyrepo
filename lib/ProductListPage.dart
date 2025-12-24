@@ -2,7 +2,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'Equipment_Detail_Page.dart';
-import 'Item.dart';
+import 'models/Item.dart';
 import '../logic/product_logic.dart';
 
 class ProductListPage extends StatefulWidget {

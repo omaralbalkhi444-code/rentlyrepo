@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:p2/services/firestore_service.dart';
 import 'package:p2/user_manager.dart';
-import 'Item.dart';
+import 'models/Item.dart';
 import 'FavouriteManager.dart';
 import 'ChatScreen.dart';
 import 'AllReviewsPage.dart';
@@ -1398,7 +1398,7 @@ class _EquipmentDetailPageState extends State<EquipmentDetailPage> {
                 "itemTitle": item.name,
                 "itemOwnerUid": item.ownerId,
                 "customerUid": UserManager.uid,
-                "customerName": UserManager.name,
+               // "customerName": UserManager.name,
                 "status": "pending",
                 "rentalType": selectedPeriod,
                 "rentalQuantity": count,

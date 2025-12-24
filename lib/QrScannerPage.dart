@@ -1,9 +1,8 @@
-
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:p2/logic/qr_scanner_logic.dart';
 import 'package:p2/services/firestore_service.dart';
 
+import 'Orders.dart';
 
 class QrScannerPage extends StatelessWidget {
   final String requestId;
@@ -12,49 +11,39 @@ class QrScannerPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    bool scanned = false;
+
     return Scaffold(
       appBar: AppBar(title: const Text("Scan Pickup QR")),
       body: MobileScanner(
         onDetect: (capture) async {
-          final qr = capture.barcodes.first.rawValue;
-          
-          if (!QrScannerLogic.shouldProcessQr(qr)) {
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(QrScannerLogic.getNullErrorMessage())),
-              );
-            }
-            return;
-          }
+          if (scanned) return; // 🔒 prevent double scan
+          scanned = true;
 
-          if (!QrScannerLogic.validateQrCode(qr)) {
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(QrScannerLogic.getErrorMessage())),
-              );
-            }
-            return;
-          }
+          final qr = capture.barcodes.first.rawValue;
+          if (qr == null) return;
 
           try {
             await FirestoreService.updateRentalRequestStatus(
               requestId,
               "active",
-              qrToken: qr!,
+              qrToken: qr,
             );
 
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(QrScannerLogic.getSuccessMessage())),
-              );
-              Navigator.pop(context);
-            }
+            if (!context.mounted) return;
+
+            // ✅ Close scanner + go to OrdersPage Active tab
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(
+                builder: (_) => const OrdersPage(initialTab: 1),
+              ),
+                  (route) => false,
+            );
           } catch (e) {
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(QrScannerLogic.getErrorMessage())),
-              );
-            }
+            scanned = false;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("Invalid QR code")),
+            );
           }
         },
       ),

@@ -336,7 +336,10 @@ Widget _counterBadge(int count) {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => QrPage(qrToken: data["qrToken"]),
+                        builder: (_) => QrPage(
+                          qrToken: data["qrToken"],
+                          requestId: requestId, // 🔑 REQUIRED
+                        ),
                       ),
                     );
                   },

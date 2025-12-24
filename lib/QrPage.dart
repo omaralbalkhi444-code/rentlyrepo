@@ -1,10 +1,51 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-class QrPage extends StatelessWidget {
+class QrPage extends StatefulWidget {
   final String qrToken;
+  final String requestId;
 
-  const QrPage({super.key, required this.qrToken});
+  const QrPage({
+    super.key,
+    required this.qrToken,
+    required this.requestId,
+  });
+
+  @override
+  State<QrPage> createState() => _QrPageState();
+}
+
+class _QrPageState extends State<QrPage> {
+  StreamSubscription<DocumentSnapshot>? _sub;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // LISTEN FOR STATUS CHANGE
+    _sub = FirebaseFirestore.instance
+        .collection("rentalRequests")
+        .doc(widget.requestId)
+        .snapshots()
+        .listen((snap) {
+      if (!snap.exists) return;
+
+      final status = snap["status"];
+      if (status == "active") {
+        if (mounted) {
+          Navigator.pop(context);
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,27 +67,30 @@ class QrPage extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   QrImageView(
-                    data: qrToken,
+                    data: widget.qrToken,
                     version: QrVersions.auto,
-                    size: 250.0,
+                    size: 250,
                     backgroundColor: Colors.white,
                   ),
                   const SizedBox(height: 20),
-                 
                   Text(
-                    'To be scanned on item pickup',
-                    style: TextStyle(fontSize: 16, color: Colors.grey[200]),
+                    "Waiting for renter to scan…",
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey[200],
+                    ),
                   ),
                 ],
               ),
             ),
           ),
-       
+
           Positioned(
             top: 40,
             left: 10,
             child: IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.white, size: 30),
+              icon: const Icon(Icons.arrow_back,
+                  color: Colors.white, size: 30),
               onPressed: () => Navigator.pop(context),
             ),
           ),
@@ -55,6 +99,3 @@ class QrPage extends StatelessWidget {
     );
   }
 }
-
-
-

@@ -1,6 +1,6 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:p2/Item.dart';
+import 'package:p2/models/Item.dart';
 
 class ProductLogic {
   static List<QueryDocumentSnapshot> filterProducts(

@@ -10,7 +10,9 @@ import 'bottom_nav.dart';
 import 'package:p2/user_manager.dart';
 
 class OrdersPage extends StatefulWidget {
-  const OrdersPage({super.key});
+  final int initialTab;
+  const OrdersPage({super.key, this.initialTab = 0});
+
 
   static const routeName = '/orders';
 
@@ -19,7 +21,13 @@ class OrdersPage extends StatefulWidget {
 }
 
 class _OrdersPageState extends State<OrdersPage> {
-  int selectedTab = 0;
+  late int selectedTab;
+
+  @override
+  void initState() {
+    super.initState();
+    selectedTab = widget.initialTab;
+  }
 
   @override
   Widget build(BuildContext context) {
