@@ -102,19 +102,15 @@ void main() {
         ),
       );
 
-      // إدخال بيانات صحيحة
       await tester.enterText(
           find.byKey(const Key('email_field')), 'test@mail.com');
       await tester.enterText(
           find.byKey(const Key('password_field')), '123456');
 
-      // الضغط على زر Continue
       await tester.tap(find.byKey(const Key('continue_button')));
 
-      // الانتظار حتى تنتهي حركة الانتقال
       await tester.pumpAndSettle();
 
-      // التحقق من ظهور صفحة الهاتف
       expect(find.text('Phone Verification Page'), findsOneWidget);
       expect(find.byKey(const Key('phone page')), findsOneWidget);
     });
@@ -205,7 +201,6 @@ class _MockCreateAccountPageState extends State<MockCreateAccountPage> {
 
               const SizedBox(height: 30),
 
-              /// CONTINUE BUTTON
               Align(
                 alignment: Alignment.centerRight,
                 child: ElevatedButton(
