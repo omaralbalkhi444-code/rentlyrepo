@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:p2/logic/payment_sharing_logic.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class PaymentSharingPage extends StatefulWidget {
@@ -8,9 +9,7 @@ class PaymentSharingPage extends StatefulWidget {
   State<PaymentSharingPage> createState() => _PaymentSharingPageState();
 }
 
-class _PaymentSharingPageState extends State<PaymentSharingPage>
-    with SingleTickerProviderStateMixin {
-
+class _PaymentSharingPageState extends State<PaymentSharingPage> {
   static const Color primaryColor = Color(0xFF1F0F46);
   static const Color secondaryColor = Color(0xFF8A005D);
   static const Color lightBgColor = Color(0xFFF8F3FF);
@@ -19,125 +18,8 @@ class _PaymentSharingPageState extends State<PaymentSharingPage>
   final amountController = TextEditingController();
   final descriptionController = TextEditingController();
 
-  List<Map<String, dynamic>> invoices = [];
-  bool newestFirst = true;
-  bool showCode = false;
-  bool isLoading = true;
-
-  String userId = '';
-  String paymentCode = '';
-  String invoiceId = '';
-  DateTime invoiceDate = DateTime.now();
-
-  late AnimationController _animController;
-  late Animation<double> _fadeAnim;
-  late Animation<Offset> _slideAnim;
-
-  @override
-  void initState() {
-    super.initState();
-    _init();
-    _animController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 450),
-    );
-    _fadeAnim =
-        CurvedAnimation(parent: _animController, curve: Curves.easeInOut);
-    _slideAnim = Tween(begin: const Offset(0, 0.2), end: Offset.zero)
-        .animate(_fadeAnim);
-  }
-
-  Future<void> _init() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    
-    if (prefs.containsKey('permanentUserId')) {
-      userId = prefs.getString('permanentUserId')!;
-    } else {
-      final storedNumber = prefs.getInt('userCounter') ?? 0;
-      final newNumber = storedNumber + 1;
-      userId = 'PAY${newNumber.toString().padLeft(6, '0')}';
-      await prefs.setInt('userCounter', newNumber);
-      await prefs.setString('permanentUserId', userId);
-    }
-
- 
-    final stored = prefs.getStringList('invoices') ?? [];
-    invoices =
-        stored.map((e) => jsonDecode(e)).cast<Map<String, dynamic>>().toList();
-
-    _sortInvoices();
-    _generateInvoiceId();
-
-    setState(() => isLoading = false);
-  }
-
-  void _generateInvoiceId() {
-    final t = DateTime.now().millisecondsSinceEpoch.toString();
-    invoiceId = 'INV-${t.substring(t.length - 8)}';
-    invoiceDate = DateTime.now();
-  }
-
-  void _sortInvoices() {
-    invoices.sort((a, b) {
-      final da = DateTime.parse(a['date']);
-      final db = DateTime.parse(b['date']);
-      return newestFirst ? db.compareTo(da) : da.compareTo(db);
-    });
-  }
-
-  Future<void> _saveInvoices() async {
-    final prefs = await SharedPreferences.getInstance();
-    prefs.setStringList(
-      'invoices',
-      invoices.map((e) => jsonEncode(e)).toList(),
-    );
-  }
-
-  Future<void> _generateCode() async {
-    final amount = double.tryParse(amountController.text);
-    if (amount == null || amount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid amount')),
-      );
-      return;
-    }
-
-    paymentCode =
-        '${userId}_${amount.toStringAsFixed(2)}_${DateTime.now().millisecondsSinceEpoch}';
-
-    final invoice = {
-      'id': invoiceId,
-      'amount': amount.toStringAsFixed(2),
-      'description': descriptionController.text.isEmpty
-          ? 'Payment Request'
-          : descriptionController.text,
-      'date': invoiceDate.toIso8601String(),
-      'status': 'Pending',
-      'payment_code': paymentCode, 
-      'user_id': userId, 
-    };
-
-    setState(() {
-      invoices.add(invoice);
-      _sortInvoices();
-      showCode = true;
-    });
-
-    await _saveInvoices();
-    _animController.forward(from: 0);
-
-    amountController.clear();
-    descriptionController.clear();
-    _generateInvoiceId();
-  }
-
   @override
   Widget build(BuildContext context) {
-    if (isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
-
     return Scaffold(
       backgroundColor: lightBgColor,
       appBar: AppBar(
@@ -146,38 +28,101 @@ class _PaymentSharingPageState extends State<PaymentSharingPage>
             style: TextStyle(color: Colors.white)),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            _requestCard(),
-            const SizedBox(height: 20),
-            if (showCode)
-              FadeTransition(
-                opacity: _fadeAnim,
-                child: SlideTransition(
-                  position: _slideAnim,
-                  child: _codeCard(),
-                ),
-              ),
-            const SizedBox(height: 24),
-            if (invoices.isNotEmpty) _invoicesList(),
-           
-            _userInfoCard(),
-          ],
-        ),
+      body: FutureBuilder<SharedPreferences>(
+        future: SharedPreferences.getInstance(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+          
+          final prefs = snapshot.data!;
+          return _PaymentSharingContent(prefs: prefs);
+        },
+      ),
+    );
+  }
+}
+
+class _PaymentSharingContent extends StatefulWidget {
+  final SharedPreferences prefs;
+
+  const _PaymentSharingContent({required this.prefs});
+
+  @override
+  State<_PaymentSharingContent> createState() => _PaymentSharingContentState();
+}
+
+class _PaymentSharingContentState extends State<_PaymentSharingContent> {
+  static const Color primaryColor = Color(0xFF1F0F46);
+  static const Color secondaryColor = Color(0xFF8A005D);
+  static const Color lightBgColor = Color(0xFFF8F3FF);
+  static const Color darkTextColor = Color(0xFF2D1B5A);
+
+  final amountController = TextEditingController();
+  final descriptionController = TextEditingController();
+  late PaymentSharingLogic logic;
+
+  @override
+  void initState() {
+    super.initState();
+    logic = PaymentSharingLogic(widget.prefs);
+    _initialize();
+  }
+
+  Future<void> _initialize() async {
+    await logic.initialize();
+    if (mounted) setState(() {});
+  }
+
+  void _generateCode() async {
+    final error = await logic.generatePaymentCode(
+      amountController.text,
+      descriptionController.text,
+    );
+    
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error)),
+      );
+      return;
+    }
+
+    setState(() {});
+    amountController.clear();
+    descriptionController.clear();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (logic.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          _buildRequestCard(),
+          const SizedBox(height: 20),
+          if (logic.showCode) _buildCodeCard(),
+          const SizedBox(height: 24),
+          if (logic.invoices.isNotEmpty) _buildInvoicesList(),
+          _buildUserInfoCard(),
+        ],
       ),
     );
   }
 
-  
-
-  Widget _requestCard() {
-    return _card(
+  Widget _buildRequestCard() {
+    return _buildCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _title('New Payment Request'),
+          _buildTitle('New Payment Request'),
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -186,7 +131,7 @@ class _PaymentSharingPageState extends State<PaymentSharingPage>
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
-              'Invoice: $invoiceId',
+              'Invoice: ${logic.invoiceId}',
               style: const TextStyle(fontSize: 12, color: primaryColor),
             ),
           ),
@@ -228,7 +173,7 @@ class _PaymentSharingPageState extends State<PaymentSharingPage>
     );
   }
 
-  Widget _codeCard() {
+  Widget _buildCodeCard() {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -259,7 +204,7 @@ class _PaymentSharingPageState extends State<PaymentSharingPage>
               borderRadius: BorderRadius.circular(12),
             ),
             child: SelectableText(
-              paymentCode,
+              logic.paymentCode,
               textAlign: TextAlign.center,
               style: const TextStyle(
                 color: Colors.white,
@@ -277,7 +222,7 @@ class _PaymentSharingPageState extends State<PaymentSharingPage>
                 icon: const Icon(Icons.copy, size: 28),
                 color: secondaryColor,
                 onPressed: () {
-                  Clipboard.setData(ClipboardData(text: paymentCode));
+                  Clipboard.setData(ClipboardData(text: logic.paymentCode));
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text('Payment code copied to clipboard!'),
@@ -305,31 +250,29 @@ class _PaymentSharingPageState extends State<PaymentSharingPage>
     );
   }
 
-  Widget _invoicesList() {
-    return _card(
+  Widget _buildInvoicesList() {
+    return _buildCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _title('Previous Invoices'),
+              _buildTitle('Previous Invoices'),
               IconButton(
                 icon: Icon(
-                  newestFirst ? Icons.arrow_downward : Icons.arrow_upward,
+                  logic.newestFirst ? Icons.arrow_downward : Icons.arrow_upward,
                   color: secondaryColor,
                 ),
-                onPressed: () {
-                  setState(() {
-                    newestFirst = !newestFirst;
-                    _sortInvoices();
-                  });
+                onPressed: () async {
+                  await logic.toggleSortOrder();
+                  setState(() {});
                 },
               ),
             ],
           ),
           const SizedBox(height: 10),
-          for (var inv in invoices)
+          for (var inv in logic.invoices)
             Dismissible(
               key: Key(inv['id']),
               direction: DismissDirection.endToStart,
@@ -358,15 +301,17 @@ class _PaymentSharingPageState extends State<PaymentSharingPage>
                   ),
                 );
               },
-              onDismissed: (_) {
-                setState(() => invoices.remove(inv));
-                _saveInvoices();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Invoice deleted'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
+              onDismissed: (_) async {
+                final success = await logic.deleteInvoice(inv['id']);
+                if (success && mounted) {
+                  setState(() {});
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Invoice deleted'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
               },
               child: InkWell(
                 onTap: () => _showInvoiceDetails(inv),
@@ -423,7 +368,7 @@ class _PaymentSharingPageState extends State<PaymentSharingPage>
     );
   }
 
-  Widget _userInfoCard() {
+  Widget _buildUserInfoCard() {
     return Container(
       margin: const EdgeInsets.only(top: 20),
       padding: const EdgeInsets.all(16),
@@ -457,7 +402,7 @@ class _PaymentSharingPageState extends State<PaymentSharingPage>
                     style: TextStyle(fontSize: 12, color: darkTextColor),
                   ),
                   Text(
-                    userId,
+                    logic.userId,
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -468,16 +413,16 @@ class _PaymentSharingPageState extends State<PaymentSharingPage>
               ),
             ],
           ),
-          const Column(
+          Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(
+              const Text(
                 'Total Invoices:',
                 style: TextStyle(fontSize: 12, color: darkTextColor),
               ),
               Text(
-                '0', 
-                style: TextStyle(
+                logic.totalInvoices.toString(),
+                style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                   color: secondaryColor,
@@ -489,7 +434,6 @@ class _PaymentSharingPageState extends State<PaymentSharingPage>
       ),
     );
   }
-
 
   void _showInvoiceDetails(Map<String, dynamic> inv) {
     showModalBottomSheet(
@@ -523,12 +467,12 @@ class _PaymentSharingPageState extends State<PaymentSharingPage>
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 20),
-              _detail('Invoice ID', inv['id']),
-              _detail('Amount', '\$${inv['amount']}'),
-              _detail('Date', _formatDate(inv['date'])),
-              _detail('Description', inv['description']),
-              _detail('Payment Code', inv['payment_code'] ?? 'N/A'),
-              _detail('Status', inv['status']),
+              _buildDetail('Invoice ID', inv['id']),
+              _buildDetail('Amount', '\$${inv['amount']}'),
+              _buildDetail('Date', _formatDate(inv['date'])),
+              _buildDetail('Description', inv['description']),
+              _buildDetail('Payment Code', inv['payment_code'] ?? 'N/A'),
+              _buildDetail('Status', inv['status']),
               const SizedBox(height: 24),
               Row(
                 children: [
@@ -541,21 +485,20 @@ class _PaymentSharingPageState extends State<PaymentSharingPage>
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () {
-                        setState(() {
-                          inv['status'] =
-                              inv['status'] == 'Pending' ? 'Paid' : 'Pending';
-                        });
-                        _saveInvoices();
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Invoice marked as ${inv['status']}'),
-                            backgroundColor: inv['status'] == 'Paid'
-                                ? Colors.green
-                                : Colors.orange,
-                          ),
-                        );
+                      onPressed: () async {
+                        await logic.toggleInvoiceStatus(inv['id']);
+                        if (mounted) {
+                          setState(() {});
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Invoice marked as ${logic.getInvoice(inv['id'])?['status'] ?? 'Unknown'}'),
+                              backgroundColor: inv['status'] == 'Paid'
+                                  ? Colors.green
+                                  : Colors.orange,
+                            ),
+                          );
+                        }
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: secondaryColor,
@@ -586,7 +529,7 @@ class _PaymentSharingPageState extends State<PaymentSharingPage>
     }
   }
 
-  Widget _detail(String label, String value) {
+  Widget _buildDetail(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
@@ -603,7 +546,7 @@ class _PaymentSharingPageState extends State<PaymentSharingPage>
           Expanded(
             child: Text(
               value,
-              style:  TextStyle(color: Colors.grey[700]),
+              style: TextStyle(color: Colors.grey[700]),
             ),
           ),
         ],
@@ -611,7 +554,7 @@ class _PaymentSharingPageState extends State<PaymentSharingPage>
     );
   }
 
-  Widget _card({required Widget child}) {
+  Widget _buildCard({required Widget child}) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -629,7 +572,7 @@ class _PaymentSharingPageState extends State<PaymentSharingPage>
     );
   }
 
-  Widget _title(String text) => Text(
+  Widget _buildTitle(String text) => Text(
         text,
         style: const TextStyle(
           fontSize: 18,
@@ -640,7 +583,6 @@ class _PaymentSharingPageState extends State<PaymentSharingPage>
 
   @override
   void dispose() {
-    _animController.dispose();
     amountController.dispose();
     descriptionController.dispose();
     super.dispose();
