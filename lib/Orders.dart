@@ -1,18 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:p2/models/rental_request.dart';
-import 'package:p2/services/firestore_service.dart';
-import 'package:p2/QrPage.dart';
+import 'package:p2/logic/orders_logic.dart';
 import 'package:p2/WalletPage.dart';
+import 'package:p2/models/rental_request.dart';
 import 'QrScannerPage.dart';
 import 'app_locale.dart';
 import 'bottom_nav.dart';
-import 'package:p2/user_manager.dart';
 
 class OrdersPage extends StatefulWidget {
   final int initialTab;
   const OrdersPage({super.key, this.initialTab = 0});
-
 
   static const routeName = '/orders';
 
@@ -22,25 +18,20 @@ class OrdersPage extends StatefulWidget {
 
 class _OrdersPageState extends State<OrdersPage> {
   late int selectedTab;
+  late OrdersLogic _logic;
 
   @override
   void initState() {
     super.initState();
     selectedTab = widget.initialTab;
+    _logic = OrdersLogic();
   }
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery
-        .of(context)
-        .size
-        .width;
-    final screenHeight = MediaQuery
-        .of(context)
-        .size
-        .height;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
     final isSmallScreen = screenWidth < 360;
-    final renterUid = UserManager.uid!;
 
     return ValueListenableBuilder<Locale>(
       valueListenable: AppLocale.locale,
@@ -53,7 +44,7 @@ class _OrdersPageState extends State<OrdersPage> {
               SizedBox(height: screenHeight * 0.02),
               _buildTabs(screenWidth, isSmallScreen),
               SizedBox(height: screenHeight * 0.03),
-              Expanded(child: _buildTabContent(renterUid, screenWidth)),
+              Expanded(child: _buildTabContent(screenWidth)),
             ],
           ),
           bottomNavigationBar: const SharedBottomNav(currentIndex: 1),
@@ -62,7 +53,7 @@ class _OrdersPageState extends State<OrdersPage> {
     );
   }
 
-  // HEADER
+ 
   Widget _buildHeader(double screenHeight, double screenWidth, bool small) {
     return ClipPath(
       clipper: SideCurveClipper(),
@@ -95,8 +86,10 @@ class _OrdersPageState extends State<OrdersPage> {
               icon: Icon(
                   Icons.payment, color: Colors.white, size: small ? 24 : 28),
               onPressed: () {
-                Navigator.push(context,
-                    MaterialPageRoute(builder: (_) => const WalletHomePage()));
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const WalletHomePage()),
+                );
               },
             ),
           ],
@@ -105,16 +98,16 @@ class _OrdersPageState extends State<OrdersPage> {
     );
   }
 
-  // TABS
+ 
   Widget _buildTabs(double screenWidth, bool small) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        buildTab(AppLocale.t('pending_orders'), 0, screenWidth),
+        buildTab(_logic.getTabTitle(0, AppLocale.t), 0, screenWidth),
         SizedBox(width: small ? 20 : 40),
-        buildTab(AppLocale.t('active_orders'), 1, screenWidth),
+        buildTab(_logic.getTabTitle(1, AppLocale.t), 1, screenWidth),
         SizedBox(width: small ? 20 : 40),
-        buildTab(AppLocale.t('previous_orders'), 2, screenWidth),
+        buildTab(_logic.getTabTitle(2, AppLocale.t), 2, screenWidth),
       ],
     );
   }
@@ -153,50 +146,15 @@ class _OrdersPageState extends State<OrdersPage> {
     );
   }
 
-  // TAB CONTENT
-  Widget _buildTabContent(String renterUid, double screenWidth) {
-    if (selectedTab == 0) {
-      // PENDING (pending + accepted)
-      return _buildRequestStream(
-        renterUid,
-        ["pending", "accepted"],
-        AppLocale.t('no_pending_orders'),
-        screenWidth,
-      );
-    } else if (selectedTab == 1) {
-      // ACTIVE
-      return _buildRequestStream(
-        renterUid,
-        ["active"],
-        AppLocale.t('no_active_orders'),
-        screenWidth,
-      );
-    } else {
-      // PREVIOUS (ended + rejected)
-      return _buildRequestStream(
-        renterUid,
-        ["ended", "rejected"],
-        AppLocale.t('no_previous_orders'),
-        screenWidth,
-      );
-    }
+  
+  Widget _buildTabContent(double screenWidth) {
+    return _buildRequestStream(screenWidth);
   }
 
-  // STREAM BUILDER FOR EACH TAB
-  Widget _buildRequestStream(String renterUid, List<String> statuses,
-      String emptyText, double screenWidth) {
+  Widget _buildRequestStream(double screenWidth) {
     return StreamBuilder<List<RentalRequest>>(
-      stream: FirestoreService.getRenterRequestsByStatuses(renterUid, statuses),
+      stream: _logic.getRequestsStream(selectedTab),
       builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return Center(
-            child: Text(
-              "Failed to load orders",
-              style: const TextStyle(color: Colors.red),
-            ),
-          );
-        }
-
         if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -205,7 +163,7 @@ class _OrdersPageState extends State<OrdersPage> {
         if (requests.isEmpty) {
           return Center(
             child: Text(
-              emptyText,
+              _logic.getEmptyTextForTab(selectedTab, AppLocale.t),
               style: TextStyle(
                 fontSize: screenWidth < 360 ? 14 : 16,
                 color: Colors.grey,
@@ -222,8 +180,9 @@ class _OrdersPageState extends State<OrdersPage> {
     );
   }
 
-  // EXPANSION TILE FOR EACH ORDER
   Widget _buildRequestTile(RentalRequest req) {
+    final requestDetails = _logic.getRequestDetails(req);
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 3,
@@ -235,8 +194,7 @@ class _OrdersPageState extends State<OrdersPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-
-            //  TITLE ROW
+          
             Row(
               children: [
                 const Icon(Icons.shopping_bag, color: Color(0xFF8A005D)),
@@ -255,7 +213,7 @@ class _OrdersPageState extends State<OrdersPage> {
 
             const SizedBox(height: 4),
 
-            //  STATUS ROW WITH QR ICON ON RIGHT
+            
             Row(
               children: [
                 Text(
@@ -265,7 +223,7 @@ class _OrdersPageState extends State<OrdersPage> {
 
                 const Spacer(),
 
-                if (req.status == "accepted")
+                if (_logic.shouldShowQRButton(req.status))
                   IconButton(
                     icon: const Icon(
                         Icons.qr_code_scanner, size: 28, color: Color(0xFF1F0F46)),
@@ -283,7 +241,6 @@ class _OrdersPageState extends State<OrdersPage> {
 
             const SizedBox(height: 8),
 
-            //  EXPANSION TILE
             ExpansionTile(
               tilePadding: EdgeInsets.zero,
               title: const Text("View Details"),
@@ -298,17 +255,13 @@ class _OrdersPageState extends State<OrdersPage> {
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text("Owner name: ${req.ownerName}"),
-                        Text("Rental Type: ${req.rentalType}"),
-                        Text("Quantity: ${req.rentalQuantity}"),
-                        Text("Start Date: ${req.startDate}"),
-                        Text("End Date: ${req.endDate}"),
-                        if (req.startTime != null)
-                          Text("Start Time: ${req.startTime}"),
-                        if (req.endTime != null)
-                          Text("End Time: ${req.endTime}"),
-                        Text("Pickup Time: ${req.pickupTime}"),
-                        Text("Total Price: JOD ${req.totalPrice}"),
+                       
+                        ...requestDetails.entries.map(
+                          (entry) => Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Text("${entry.key}: ${entry.value}"),
+                          ),
+                        ).toList(),
                       ],
                     ),
                   ),
@@ -322,7 +275,7 @@ class _OrdersPageState extends State<OrdersPage> {
   }
 }
 
-// CLIPPER
+
 class SideCurveClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
