@@ -6,7 +6,7 @@ class PaymentSharingLogic {
   String paymentCode = '';
   String invoiceId = '';
   DateTime invoiceDate = DateTime.now();
-  
+
   List<Map<String, dynamic>> invoices = [];
   bool newestFirst = true;
   bool showCode = false;
@@ -37,7 +37,10 @@ class PaymentSharingLogic {
 
   Future<void> _loadInvoices() async {
     final stored = prefs.getStringList('invoices') ?? [];
-    invoices = stored.map((e) => jsonDecode(e)).cast<Map<String, dynamic>>().toList();
+    invoices = stored
+        .map((e) => jsonDecode(e))
+        .cast<Map<String, dynamic>>()
+        .toList();
     _sortInvoices();
   }
 
@@ -62,7 +65,7 @@ class PaymentSharingLogic {
   }
 
   Future<void> _saveInvoices() async {
-    prefs.setStringList(
+    await prefs.setStringList(
       'invoices',
       invoices.map((e) => jsonEncode(e)).toList(),
     );
@@ -74,7 +77,11 @@ class PaymentSharingLogic {
       return 'Please enter a valid amount';
     }
 
-    paymentCode = '${userId}_${amount.toStringAsFixed(2)}_${DateTime.now().millisecondsSinceEpoch}';
+    // توليد invoiceId و invoiceDate جديد لكل فاتورة
+    _generateInvoiceId();
+
+    paymentCode =
+        '${userId}_${amount.toStringAsFixed(2)}_${DateTime.now().millisecondsSinceEpoch}';
 
     final invoice = {
       'id': invoiceId,
@@ -91,15 +98,14 @@ class PaymentSharingLogic {
     showCode = true;
 
     await _saveInvoices();
-    _generateInvoiceId();
-    
+
     return null;
   }
 
   Future<bool> deleteInvoice(String invoiceId) async {
     final initialLength = invoices.length;
     invoices.removeWhere((invoice) => invoice['id'] == invoiceId);
-    
+
     if (invoices.length < initialLength) {
       await _saveInvoices();
       return true;
@@ -110,9 +116,9 @@ class PaymentSharingLogic {
   Future<void> toggleInvoiceStatus(String invoiceId) async {
     final invoice = invoices.firstWhere(
       (inv) => inv['id'] == invoiceId,
-      orElse: () => {},
+      orElse: () => <String, dynamic>{},
     );
-    
+
     if (invoice.isNotEmpty) {
       invoice['status'] = invoice['status'] == 'Pending' ? 'Paid' : 'Pending';
       await _saveInvoices();
