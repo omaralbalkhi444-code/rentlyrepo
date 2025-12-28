@@ -22,7 +22,7 @@ void main() {
     test('generatePaymentCode creates valid code', () async {
       await logic.initialize();
       final error = await logic.generatePaymentCode('100.50', 'Test Payment');
-      
+
       expect(error, isNull);
       expect(logic.paymentCode, isNotNull);
       expect(logic.paymentCode, contains(logic.userId));
@@ -34,10 +34,10 @@ void main() {
       await logic.initialize();
       final error1 = await logic.generatePaymentCode('', 'Test');
       expect(error1, 'Please enter a valid amount');
-      
+
       final error2 = await logic.generatePaymentCode('0', 'Test');
       expect(error2, 'Please enter a valid amount');
-      
+
       final error3 = await logic.generatePaymentCode('-10', 'Test');
       expect(error3, 'Please enter a valid amount');
     });
@@ -45,13 +45,13 @@ void main() {
     test('invoices are added and sorted', () async {
       await logic.initialize();
       final initialCount = logic.invoices.length;
-      
+
       await logic.generatePaymentCode('100', 'First');
       await logic.generatePaymentCode('200', 'Second');
-      
+
       expect(logic.invoices.length, initialCount + 2);
       expect(logic.invoices[0]['description'], 'Second');
-      
+
       await logic.toggleSortOrder();
       expect(logic.invoices[0]['description'], 'First');
     });
@@ -59,10 +59,10 @@ void main() {
     test('deleteInvoice removes invoice', () async {
       await logic.initialize();
       await logic.generatePaymentCode('100', 'Test');
-      
+
       final initialLength = logic.invoices.length;
       final invoiceId = logic.invoices.first['id'];
-      
+
       final success = await logic.deleteInvoice(invoiceId);
       expect(success, true);
       expect(logic.invoices.length, initialLength - 1);
@@ -78,12 +78,12 @@ void main() {
       await logic.initialize();
       await logic.generatePaymentCode('100', 'Test');
       final invoiceId = logic.invoices.first['id'];
-      
+
       expect(logic.getInvoice(invoiceId)?['status'], 'Pending');
-      
+
       await logic.toggleInvoiceStatus(invoiceId);
       expect(logic.getInvoice(invoiceId)?['status'], 'Paid');
-      
+
       await logic.toggleInvoiceStatus(invoiceId);
       expect(logic.getInvoice(invoiceId)?['status'], 'Pending');
     });
@@ -97,10 +97,10 @@ void main() {
     test('totalInvoices returns correct count', () async {
       await logic.initialize();
       final initialCount = logic.totalInvoices;
-      
+
       await logic.generatePaymentCode('100', 'Test 1');
       expect(logic.totalInvoices, initialCount + 1);
-      
+
       await logic.generatePaymentCode('200', 'Test 2');
       expect(logic.totalInvoices, initialCount + 2);
     });
@@ -114,7 +114,10 @@ void main() {
     test('invoiceDate is set to current time', () async {
       await logic.initialize();
       expect(logic.invoiceDate, isNotNull);
-      expect(logic.invoiceDate.isBefore(DateTime.now().add(Duration(seconds: 1))), true);
+      expect(
+        logic.invoiceDate.isBefore(DateTime.now().add(Duration(seconds: 1))),
+        true,
+      );
     });
 
     test('isLoading becomes false after initialize', () async {
