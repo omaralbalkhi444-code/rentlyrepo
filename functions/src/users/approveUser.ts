@@ -1,13 +1,8 @@
 import { onCall } from "firebase-functions/v2/https";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
-//import { isAdmin } from "../utils/isAdmin";
+import * as admin from "firebase-admin";
 
 export const approveUser = onCall(async (request) => {
-  //const adminUid = request.auth?.uid;
-
- // if (!adminUid || !isAdmin(adminUid)) {
- //   throw new Error("Admin only.");
- // }
 
   const uid = request.data?.uid;
   if (!uid) {
@@ -40,6 +35,18 @@ export const approveUser = onCall(async (request) => {
     status: "approved",
     approvedAt: Timestamp.now(),
   });
+
+// create wallet if doesnt exist
+  const walletRef = db.collection("wallets").doc(uid);
+  const walletDoc = await walletRef.get();
+
+  if (!walletDoc.exists) {
+    await walletRef.set({
+      uid,
+      balance: 0,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  }
 
   return { success: true };
 });

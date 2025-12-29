@@ -17,7 +17,6 @@ class _WalletHomePageState extends State<WalletHomePage> {
   double currentBalance = WalletLogic.currentBalance; 
   List<Map<String, dynamic>> recentTransactions = WalletLogic.recentTransactions; 
 
- 
   double get totalDeposits => WalletLogic.getTotalDeposits(recentTransactions);
   double get totalWithdrawals => WalletLogic.getTotalWithdrawals(recentTransactions);
   double get averageDeposit => WalletLogic.getAverageDeposit(recentTransactions);

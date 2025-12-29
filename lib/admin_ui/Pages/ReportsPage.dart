@@ -34,7 +34,7 @@ class ReportsPage extends StatelessWidget {
                       icon: const Icon(Icons.arrow_back,
                           color: Colors.white, size: 28),
                       onPressed: () {
-                        context.pop(); 
+                        context.pop();
                       },
                     ),
                     const SizedBox(width: 10),
@@ -52,7 +52,7 @@ class ReportsPage extends StatelessWidget {
             ],
           ),
 
-          
+
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(16),
