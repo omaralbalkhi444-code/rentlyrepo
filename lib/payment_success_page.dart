@@ -80,7 +80,7 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
             ),
             const SizedBox(height: 30),
             Text(
-              '\$${_logic.amount.toStringAsFixed(2)}',
+              'JD${_logic.amount.toStringAsFixed(2)}',
               style: const TextStyle(
                 fontSize: 48,
                 fontWeight: FontWeight.w700,

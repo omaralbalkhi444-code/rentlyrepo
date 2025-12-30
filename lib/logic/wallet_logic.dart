@@ -3,9 +3,6 @@
 import 'dart:math';
 
 class WalletLogic {
-  
-  static double currentBalance = 1250.75;
-  
   static List<Map<String, dynamic>> recentTransactions = [
     {
       'id': 'TXN001',

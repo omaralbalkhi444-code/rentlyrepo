@@ -118,4 +118,24 @@ class FirestoreService {
     });
   }
 
+  static Stream<double> walletBalanceStream(String uid) {
+    return FirebaseFirestore.instance
+        .collection("wallets")
+        .doc(uid)
+        .snapshots()
+        .map((doc) {
+      if (!doc.exists) return 0.0;
+
+      final data = doc.data();
+      if (data == null) return 0.0;
+
+      final balance = data["balance"];
+      if (balance is num) {
+        return balance.toDouble();
+      }
+
+      return 0.0;
+    });
+  }
+
 }

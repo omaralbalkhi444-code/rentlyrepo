@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:p2/CashWithdrawalPage.dart';
 import 'package:p2/TransactionHistoryPage.dart';
 import 'package:p2/WalletRechargePage.dart';
-import 'package:p2/logic/wallet_logic.dart'; 
+import 'package:p2/logic/wallet_logic.dart';
+import 'package:p2/services/firestore_service.dart';
+import 'package:p2/user_manager.dart';
 
 
 class WalletHomePage extends StatefulWidget {
@@ -14,7 +16,6 @@ class WalletHomePage extends StatefulWidget {
 }
 
 class _WalletHomePageState extends State<WalletHomePage> {
-  double currentBalance = WalletLogic.currentBalance; 
   List<Map<String, dynamic>> recentTransactions = WalletLogic.recentTransactions; 
 
   double get totalDeposits => WalletLogic.getTotalDeposits(recentTransactions);
@@ -24,62 +25,81 @@ class _WalletHomePageState extends State<WalletHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'My Wallet',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-            fontSize: 20,
-          ),
+    final userId = UserManager.uid;;
+
+    // if user is null
+    if (userId == null) {
+      return const Scaffold(
+        body: Center(
+          child: Text("You must be logged in to view your wallet."),
         ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF1F0F46), Color(0xFF8A005D)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+      );
+    }
+
+    return StreamBuilder<double>(
+      stream: FirestoreService.walletBalanceStream(userId),
+      builder: (context, snapshot) {
+        final isLoading = snapshot.connectionState == ConnectionState.waiting;
+        final currentBalance = snapshot.data ?? 0.0;
+
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text(
+              'My Wallet',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 20,
+              ),
+            ),
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            flexibleSpace: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF1F0F46), Color(0xFF8A005D)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+            ),
+            centerTitle: true,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.white),
+              onPressed: () => Navigator.pop(context),
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.notifications_none, color: Colors.white),
+                onPressed: () {},
+              ),
+            ],
+          ),
+          body: SingleChildScrollView(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildBalanceCard(isLoading, currentBalance),
+                const SizedBox(height: 30),
+                _buildActionButtons(),
+                const SizedBox(height: 30),
+                _buildRecentTransactions(),
+                const SizedBox(height: 30),
+                _buildWalletStatistics(),
+                const SizedBox(height: 30),
+                _buildHelpSection(),
+                const SizedBox(height: 40),
+              ],
             ),
           ),
-        ),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_none, color: Colors.white),
-            onPressed: () {},
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-        
-            _buildBalanceCard(),
-            const SizedBox(height: 30),
-          
-            _buildActionButtons(),
-            const SizedBox(height: 30),
-            
-            _buildRecentTransactions(),
-            const SizedBox(height: 30),
-            
-            _buildWalletStatistics(),
-            const SizedBox(height: 30),
-           
-            _buildHelpSection(),
-            const SizedBox(height: 40),
-          ],
-        ),
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildBalanceCard() {
+
+  Widget _buildBalanceCard(bool isLoading, double currentBalance) {
     return Container(
       padding: const EdgeInsets.all(25),
       decoration: BoxDecoration(
@@ -117,29 +137,14 @@ class _WalletHomePageState extends State<WalletHomePage> {
           ),
           const SizedBox(height: 12),
           Text(
-            '\$${WalletLogic.formatBalance(currentBalance)}',
+            isLoading
+                ? '...'
+                : 'JD${WalletLogic.formatBalance(currentBalance)}',
             style: const TextStyle(
               color: Colors.white,
               fontSize: 42,
               fontWeight: FontWeight.w800,
               letterSpacing: 1,
-            ),
-          ),
-          const SizedBox(height: 20),
-          Container(
-            padding: const EdgeInsets.all(15),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(15),
-              border: Border.all(color: Colors.white.withOpacity(0.2)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildBalanceStat('Today', '+ \$25.50', Colors.green),
-                _buildBalanceStat('This Week', '+ \$350.25', Colors.green),
-                _buildBalanceStat('This Month', '+ \$1,200.00', Colors.green),
-              ],
             ),
           ),
         ],
@@ -153,7 +158,7 @@ class _WalletHomePageState extends State<WalletHomePage> {
         Expanded(
           child: _buildActionButton(
             icon: Icons.add_circle_outline,
-            label: 'Add Money',
+            label: 'Recharge Wallet',
             color: Colors.green,
             gradient: const LinearGradient(
               colors: [Color(0xFF4CAF50), Color(0xFF8BC34A)],
@@ -488,40 +493,11 @@ class _WalletHomePageState extends State<WalletHomePage> {
               );
             },
           ),
-          _buildHelpItem(
-            'Contact support',
-            '24/7 customer service',
-            Icons.headset_mic,
-            onTap: () {
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Contact Support'),
-                  content: const SingleChildScrollView(
-                    child: Text(
-                      'Customer Service - Available 24/7\n\n'
-                      '📞 Phone: 1-800-123-4567\n'
-                      '📧 Email: support@walletapp.com\n'
-                      '💬 Live Chat: Available in app\n'
-                      '🕒 Hours: 24/7\n',
-                    ),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Close'),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
         ],
       ),
     );
   }
 
-  
   Widget _buildBalanceStat(String period, String amount, Color color) {
     return Column(
       children: [
@@ -857,7 +833,6 @@ class _WalletHomePageState extends State<WalletHomePage> {
     );
   }
 
-  
   Color _getColorFromString(String colorStr) {
     switch (colorStr.toLowerCase()) {
       case 'green':

@@ -42,8 +42,10 @@ class CreditCardLogic {
       return;
     }
 
-    if (cleanedCardNumber.startsWith('4')) {
+    if (RegExp(r'^4').hasMatch(cleanedCardNumber)) {
       cardType = 'Visa';
+    } else if (RegExp(r'^(5[1-5]|2[2-7])').hasMatch(cleanedCardNumber)) {
+      cardType = 'MasterCard';
     } else {
       cardType = null;
     }
@@ -51,37 +53,23 @@ class CreditCardLogic {
 
   String? _validateCardNumberInput(String? value) {
     if (value == null || value.isEmpty) {
-      return 'Please enter card number';
+      return 'Please enter your card number';
     }
-
     final cleanedValue = value.replaceAll(' ', '');
 
     if (cleanedValue.length != 16) {
       return 'Card number must be 16 digits';
     }
-
     if (!RegExp(r'^[0-9]+$').hasMatch(cleanedValue)) {
       return 'Card number must contain only digits';
     }
-
-    if (!cleanedValue.startsWith('4')) {
-      return 'Only Visa cards are accepted (must start with 4)';
+    if (cardType == null) {
+      return 'Unsupported card type';
     }
-
-    if (!_validateCardNumber(cleanedValue)) {
-      return 'Invalid Visa card number';
-    }
-
+    //if (!_luhnAlgorithm(cleanedValue)) {
+      //return 'Invalid card number';
+    //}
     return null;
-  }
-
-  bool _validateCardNumber(String cardNumber) {
-    final cleanedCardNumber = cardNumber.replaceAll(' ', '');
-
-    if (cleanedCardNumber.length != 16) return false;
-    if (!cleanedCardNumber.startsWith('4')) return false;
-
-    return _luhnAlgorithm(cleanedCardNumber);
   }
 
   bool _luhnAlgorithm(String number) {
@@ -101,7 +89,6 @@ class CreditCardLogic {
       sum += digit;
       alternate = !alternate;
     }
-
     return (sum % 10) == 0;
   }
 
@@ -114,15 +101,15 @@ class CreditCardLogic {
     if (name == null || name.isEmpty) {
       return 'Please enter card holder name';
     }
+    final trimmed = name.trim();
 
-    if (name.length < 3) {
-      return 'Name must be at least 3 characters';
+    if (trimmed.length < 3) {
+      return 'Name is too short';
     }
 
     if (name.length > 50) {
       return 'Name is too long';
     }
-
     if (!RegExp(r'^[a-zA-Z\s]+$').hasMatch(name)) {
       return 'Name must contain only letters and spaces';
     }
@@ -132,17 +119,10 @@ class CreditCardLogic {
       return 'Please enter full name (first and last name)';
     }
 
-    for (final word in words) {
-      if (word.length < 2) {
-        return 'Each name part must be at least 2 characters';
-      }
-    }
-
     return null;
   }
 
   void updateExpiryDate(String value) {
-  
     value = value.replaceAll('-', '/');
     
     final cleanedValue = value.replaceAll('/', '');
@@ -163,7 +143,6 @@ class CreditCardLogic {
       final year = digitsOnly.substring(2, min(digitsOnly.length, 4));
       expiryDate = '$month/$year';
     }
-
     expiryDateError = _validateExpiryDateInput(expiryDate);
   }
 
@@ -173,29 +152,11 @@ class CreditCardLogic {
     if (value == null || value.isEmpty) {
       return 'Please enter expiry date';
     }
-
-    final cleanedValue = value.replaceAll('/', '');
-    if (cleanedValue.length < 4) {
-      return 'Format: MM/YY (e.g., 12/25)';
+    if (!RegExp(r'^(0[1-9]|1[0-2])\/([0-9]{2})$').hasMatch(value)) {
+      return 'Format must be MM/YY';
     }
 
-    if (!RegExp(r'^(0[1-9]|1[0-2])/([0-9]{2})$').hasMatch(value)) {
-      return 'Format: MM/YY (e.g., 12/25)';
-    }
-
-    if (!_validateExpiryDate(value)) {
-      return 'Card has expired or invalid date';
-    }
-
-    return null;
-  }
-
-  bool _validateExpiryDate(String expiry) {
-    if (!RegExp(r'^(0[1-9]|1[0-2])/([0-9]{2})$').hasMatch(expiry)) {
-      return false;
-    }
-
-    final parts = expiry.split('/');
+    final parts = value.split('/');
     final month = int.parse(parts[0]);
     final year = int.parse(parts[1]);
 
@@ -203,10 +164,13 @@ class CreditCardLogic {
     final currentYear = now.year % 100;
     final currentMonth = now.month;
 
-    if (year < currentYear) return false;
-    if (year == currentYear && month < currentMonth) return false;
-
-    return true;
+    if (year < currentYear || (year == currentYear && month < currentMonth)) {
+      return 'This card has expired';
+    }
+    if (year > currentYear + 15) {
+      return 'Invalid expiry year';
+    }
+    return null;
   }
 
   void updateCVV(String value) {
@@ -218,11 +182,9 @@ class CreditCardLogic {
     if (value == null || value.isEmpty) {
       return 'Please enter CVV';
     }
-
     if (!RegExp(r'^[0-9]{3}$').hasMatch(value)) {
-      return 'CVV must be 3 digits';
+        return 'CVV must be 3 digits';
     }
-
     return null;
   }
 

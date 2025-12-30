@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:p2/EfawateercomInvoicePage.dart';
 import 'package:p2/CreditCardPaymentPage.dart';
 import 'package:p2/services/firestore_service.dart';
+import 'package:p2/user_manager.dart';
 import 'logic/wallet_recharge_logic.dart';
 
 
@@ -17,50 +18,79 @@ class _WalletRechargePageState extends State<WalletRechargePage> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   String? selectedMethod;
   final TextEditingController amountController = TextEditingController();
-  double currentBalance = WalletRechargeLogic.defaultBalance;
 
   bool loading = false;
 
   @override
   Widget build(BuildContext context) {
-    final balanceStats = WalletRechargeLogic.getBalanceStats(currentBalance);
+    final userId = UserManager.uid;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Recharge Wallet',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
+    if (userId == null) {
+      return const Scaffold(
+        body: Center(
+          child: Text("You must be logged in."),
+        ),
+      );
+    }
+
+    return StreamBuilder<double>(
+      stream: FirestoreService.walletBalanceStream(userId),
+      builder: (context, snapshot) {
+        final isLoading = snapshot.connectionState == ConnectionState.waiting;
+        final currentBalance = snapshot.data ?? 0.0;
+
+        final balanceStats = WalletRechargeLogic.getBalanceStats(currentBalance);
+
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text(
+              'Recharge Wallet',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 20,
+                color: Colors.white,
+              ),
+            ),
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            flexibleSpace: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF1F0F46), Color(0xFF8A005D)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+            ),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.white),
+              onPressed: () => Navigator.pop(context),
+            ),
           ),
-        ),
-        backgroundColor: const Color(0xFF1F0F46),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: AbsorbPointer(
-        absorbing: loading,
-        child: Stack(
-          children: [
-            _buildBody(balanceStats),
-            if (loading)
-              const Center(child: CircularProgressIndicator()),
-          ],
-        ),
-      ),
+
+          body: AbsorbPointer(
+            absorbing: loading,
+            child: Stack(
+              children: [
+                _buildBody(balanceStats, isLoading, currentBalance),
+                if (loading)
+                  const Center(child: CircularProgressIndicator()),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildBody(Map<String, String> balanceStats) {
+  Widget _buildBody(Map<String, String> balanceStats, bool isLoading, double currentBalance) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Form(
         key: _formKey,
         child: Column(
           children: [
-            _buildBalanceCard(balanceStats),
+            _buildBalanceCard(balanceStats, currentBalance),
             const SizedBox(height: 25),
             _buildAmountInputCard(),
             const SizedBox(height: 20),
@@ -77,7 +107,7 @@ class _WalletRechargePageState extends State<WalletRechargePage> {
     );
   }
 
-  Widget _buildBalanceCard(Map<String, String> stats) {
+  Widget _buildBalanceCard(Map<String, String> stats, double currentBalance) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -115,28 +145,12 @@ class _WalletRechargePageState extends State<WalletRechargePage> {
           ),
           const SizedBox(height: 10),
           Text(
-            '\$${WalletRechargeLogic.formatBalance(currentBalance)}', 
+            'JD${WalletRechargeLogic.formatBalance(currentBalance)}',
             style: const TextStyle(
               color: Colors.white,
               fontSize: 36,
               fontWeight: FontWeight.w700,
               letterSpacing: 1,
-            ),
-          ),
-          const SizedBox(height: 15),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildMiniStat('Today', stats['today']!, Colors.green),
-                _buildMiniStat('This Week', stats['thisWeek']!, Colors.green),
-                _buildMiniStat('Last Month', stats['lastMonth']!, Colors.green),
-              ],
             ),
           ),
         ],
@@ -156,15 +170,21 @@ class _WalletRechargePageState extends State<WalletRechargePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Row(
-              children: [
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
                 Icon(Icons.add_circle, color: Color(0xFF8A005D)),
                 SizedBox(width: 10),
-                Text(
-                  'Enter Amount',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF1F0F46),
+                Expanded(
+                  child: Text(
+                    'Enter the amount you want to recharge',
+                    maxLines: 2,
+                    softWrap: true,
+                    overflow: TextOverflow.visible,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF1F0F46),
+                    ),
                   ),
                 ),
               ],
@@ -186,11 +206,6 @@ class _WalletRechargePageState extends State<WalletRechargePage> {
                   fontSize: 28,
                   color: Colors.grey[400],
                   fontWeight: FontWeight.w700,
-                ),
-                prefixIcon: const Icon(
-                  Icons.attach_money,
-                  color: Color(0xFF8A005D),
-                  size: 28,
                 ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -275,14 +290,8 @@ class _WalletRechargePageState extends State<WalletRechargePage> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          _getIconFromString(item['icon']),
-                          color: Colors.white,
-                          size: 18,
-                        ),
-                        const SizedBox(width: 8),
                         Text(
-                          '\$${item['amount']}',
+                          'JD${item['amount']}',
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w600,
@@ -591,8 +600,6 @@ class _WalletRechargePageState extends State<WalletRechargePage> {
 
   IconData _getIconFromString(String iconName) {
     switch (iconName) {
-      case 'attach_money':
-        return Icons.attach_money;
       case 'money':
         return Icons.money;
       case 'account_balance_wallet':
@@ -604,7 +611,7 @@ class _WalletRechargePageState extends State<WalletRechargePage> {
       case 'credit_card':
         return Icons.credit_card;
       default:
-        return Icons.attach_money;
+        return Icons.money;
     }
   }
 

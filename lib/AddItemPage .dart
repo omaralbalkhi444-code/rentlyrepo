@@ -92,8 +92,7 @@ class _AddItemPageState extends State<AddItemPage> {
       }
     }
   }
-  
-  
+
   double getInsuranceRate(double itemPrice) {
     if (itemPrice <= 50) {
       return 0.0; 
