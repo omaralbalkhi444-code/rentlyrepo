@@ -45,8 +45,11 @@ export const rejectWithdrawal = onCall(async (req) => {
       updatedAt: Timestamp.now(),
     });
 
+    const userId = userSnap.data()!.userId;
+
     const txRef = db.collection("walletTransactions").doc();
     trx.set(txRef, {
+      userId,
       fromWalletId: data.holdingWalletId,
       toWalletId: data.userWalletId,
       amount: data.amount,

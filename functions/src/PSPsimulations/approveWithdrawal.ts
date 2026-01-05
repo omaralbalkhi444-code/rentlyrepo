@@ -23,8 +23,12 @@ export const approveWithdrawal = onCall(async (req) => {
     if (data.expiresAt && data.expiresAt.toMillis() <= Date.now())
       throw new Error("Withdrawal expired");
 
+    const userRef = db.collection("wallets").doc(data.userWalletId);
     const holdingRef = db.collection("wallets").doc(data.holdingWalletId);
+
+    const userSnap = await trx.get(userRef);
     const holdingSnap = await trx.get(holdingRef);
+
     if (!holdingSnap.exists) throw new Error("Holding wallet missing");
 
     const holdingBal = holdingSnap.data()!.balance;
@@ -37,8 +41,11 @@ export const approveWithdrawal = onCall(async (req) => {
       updatedAt: Timestamp.now(),
     });
 
+    const userId = userSnap.data()!.userId;
+
     const txRef = db.collection("walletTransactions").doc();
     trx.set(txRef, {
+      userId,
       fromWalletId: data.holdingWalletId,
       toWalletId: null,
       amount: data.amount,

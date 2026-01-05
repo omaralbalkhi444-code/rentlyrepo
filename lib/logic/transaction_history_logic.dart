@@ -11,7 +11,7 @@ class TransactionHistoryLogic {
     required this.transactions,
     this.filter = 'All',
   });
-//===
+
   List<Map<String, dynamic>> get filteredTransactions {
     if (filter == 'Deposits') {
       return transactions.where((t) => t['type'] == 'deposit').toList();

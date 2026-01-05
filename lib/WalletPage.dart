@@ -16,12 +16,8 @@ class WalletHomePage extends StatefulWidget {
 }
 
 class _WalletHomePageState extends State<WalletHomePage> {
-  List<Map<String, dynamic>> recentTransactions = WalletLogic.recentTransactions; 
-
-  double get totalDeposits => WalletLogic.getTotalDeposits(recentTransactions);
-  double get totalWithdrawals => WalletLogic.getTotalWithdrawals(recentTransactions);
-  double get averageDeposit => WalletLogic.getAverageDeposit(recentTransactions);
-  int get transactionCount => WalletLogic.getTransactionCount(recentTransactions);
+  final transactionsStream =
+  FirestoreService.userRecentTransactionsStream(UserManager.uid!);
 
   @override
   Widget build(BuildContext context) {
@@ -88,8 +84,6 @@ class _WalletHomePageState extends State<WalletHomePage> {
                 _buildActionButtons(),
                 const SizedBox(height: 30),
                 _buildRecentTransactions(),
-                const SizedBox(height: 30),
-                _buildWalletStatistics(),
                 const SizedBox(height: 30),
                 _buildHelpSection(),
                 const SizedBox(height: 40),
@@ -213,206 +207,132 @@ class _WalletHomePageState extends State<WalletHomePage> {
   }
 
   Widget _buildRecentTransactions() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Row(
-                children: [
-                  Icon(
-                    Icons.history,
-                    color: Color(0xFF1F0F46),
-                    size: 24,
-                  ),
-                  SizedBox(width: 10),
-                  Text(
-                    'Recent Transactions',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF1F0F46),
-                    ),
-                  ),
-                ],
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: FirestoreService.userRecentTransactionsStream(UserManager.uid!),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final transactions = snapshot.data ?? [];
+
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 15,
+                offset: const Offset(0, 5),
               ),
-              GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => TransactionHistoryPage(
-                        transactions: recentTransactions,
-                      ),
-                    ),
-                  );
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF1F0F46), Color(0xFF8A005D)],
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Row(
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // HEADER
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Row(
                     children: [
+                      Icon(Icons.history, color: Color(0xFF1F0F46), size: 24),
+                      SizedBox(width: 10),
                       Text(
-                        'View All',
+                        'Recent Transactions',
                         style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF1F0F46),
                         ),
-                      ),
-                      SizedBox(width: 4),
-                      Icon(
-                        Icons.arrow_forward,
-                        color: Colors.white,
-                        size: 14,
                       ),
                     ],
                   ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          
-          if (recentTransactions.isEmpty)
-            Container(
-              padding: const EdgeInsets.all(30),
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.receipt_long,
-                    size: 60,
-                    color: Colors.grey[300],
-                  ),
-                  const SizedBox(height: 15),
-                  Text(
-                    'No Transactions Yet',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey[600],
-                      fontWeight: FontWeight.w500,
+
+                  // VIEW ALL
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => TransactionHistoryPage(
+                            transactions: transactions,
+                          ),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF1F0F46), Color(0xFF8A005D)],
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Row(
+                        children: [
+                          Text(
+                            'View All',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                            ),
+                          ),
+                          SizedBox(width: 4),
+                          Icon(Icons.arrow_forward,
+                              color: Colors.white, size: 14),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Your transaction history will appear here',
-                    style: TextStyle(
-                      color: Colors.grey[500],
-                      fontSize: 13,
-                    ),
-                    textAlign: TextAlign.center,
                   ),
                 ],
               ),
-            )
-          else
-            ...recentTransactions.take(3).map((transaction) {
-              return _buildTransactionItem(transaction);
-            }).toList(),
-        ],
-      ),
+
+              const SizedBox(height: 20),
+
+              // EMPTY STATE
+              if (transactions.isEmpty)
+                _buildEmptyTransactions()
+              else
+                ...transactions.take(3).map((tx) => _buildTransactionItem(tx)),
+            ],
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildWalletStatistics() {
+  Widget _buildEmptyTransactions() {
     return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
+      padding: const EdgeInsets.all(30),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
-            children: [
-              Icon(
-                Icons.analytics,
-                color: Color(0xFF8A005D),
-                size: 24,
-              ),
-              SizedBox(width: 10),
-              Text(
-                'Wallet Statistics',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF1F0F46),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: _buildStatCard(
-                  'Total Deposits',
-                  '\$${WalletLogic.formatBalance(totalDeposits)}',
-                  Icons.trending_up,
-                  Colors.green,
-                ),
-              ),
-              const SizedBox(width: 15),
-              Expanded(
-                child: _buildStatCard(
-                  'Total Withdrawals',
-                  '\$${WalletLogic.formatBalance(totalWithdrawals)}',
-                  Icons.trending_down,
-                  Colors.red,
-                ),
-              ),
-            ],
+          Icon(
+            Icons.receipt_long,
+            size: 60,
+            color: Colors.grey[300],
           ),
           const SizedBox(height: 15),
-          Row(
-            children: [
-              Expanded(
-                child: _buildStatCard(
-                  'Avg. Deposit',
-                  '\$${WalletLogic.formatBalance(averageDeposit)}',
-                  Icons.attach_money,
-                  Colors.blue,
-                ),
-              ),
-              const SizedBox(width: 15),
-              Expanded(
-                child: _buildStatCard(
-                  'Transactions',
-                  transactionCount.toString(),
-                  Icons.receipt,
-                  Colors.purple,
-                ),
-              ),
-            ],
+          Text(
+            'No Transactions Yet',
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Your transactions history will appear here',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.grey[500],
+              fontSize: 13,
+            ),
           ),
         ],
       ),
@@ -491,8 +411,7 @@ class _WalletHomePageState extends State<WalletHomePage> {
                       '2. Failed payments: Check your balance\n'
                       '3. Incorrect amounts: Verify details\n'
                       '4. Network issues: Check internet\n'
-                      '5. Delayed withdrawals: 1-3 business days\n'
-                      '6. Login problems: Reset password\n',
+                      '5. Delayed withdrawals: 1-2 business days\n'
                     ),
                   ),
                   actions: [
@@ -507,30 +426,6 @@ class _WalletHomePageState extends State<WalletHomePage> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildBalanceStat(String period, String amount, Color color) {
-    return Column(
-      children: [
-        Text(
-          period,
-          style: const TextStyle(
-            color: Colors.white70,
-            fontSize: 11,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          amount,
-          style: TextStyle(
-            color: color,
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ],
     );
   }
 
@@ -601,6 +496,7 @@ class _WalletHomePageState extends State<WalletHomePage> {
           onTap: () {
             showModalBottomSheet(
               context: context,
+              isScrollControlled: true,
               builder: (context) => _buildTransactionDetails(transaction),
             );
           },
@@ -637,7 +533,7 @@ class _WalletHomePageState extends State<WalletHomePage> {
                             ),
                           ),
                           Text(
-                            '${isDeposit ? '+' : '-'}\$${(transaction['amount'] as double).toStringAsFixed(2)}',
+                            '${isDeposit ? '+' : '-'}${(transaction['amount'] as double).toStringAsFixed(2)}JD',
                             style: TextStyle(
                               color: _getColorFromString(transaction['color']),
                               fontWeight: FontWeight.w700,
@@ -675,65 +571,77 @@ class _WalletHomePageState extends State<WalletHomePage> {
   }
 
   Widget _buildTransactionDetails(Map<String, dynamic> transaction) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: Colors.grey[300],
-              borderRadius: BorderRadius.circular(2),
+    return DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.6,
+        minChildSize: 0.4,
+        maxChildSize: 0.95,
+        builder: (context, controller) {
+          return SafeArea(
+            child: SingleChildScrollView(
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Container(
+                      padding: const EdgeInsets.all(15),
+                      decoration: BoxDecoration(
+                        color: _getColorFromString(transaction['color']).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: Icon(
+                        _getIconFromString(transaction['icon']),
+                        size: 40,
+                        color: _getColorFromString(transaction['color']),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      '${transaction['type'] == 'deposit' ? '+' : '-'}${(transaction['amount'] as double).toStringAsFixed(2)}LD',
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF1F0F46),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      transaction['type'] == 'deposit' ? 'Wallet Recharge' : 'Cash Withdrawal',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    const SizedBox(height: 30),
+                    _buildDetailRow('Method', transaction['method']),
+                    _buildDetailRow('Date', transaction['date']),
+                    _buildDetailRow('Time', transaction['time']),
+                    _buildDetailRow('Status', transaction['status']),
+                    _buildDetailRow('Transaction ID', transaction['id']),
+                    const SizedBox(height: 30),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Close'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ),
-          const SizedBox(height: 20),
-          Container(
-            padding: const EdgeInsets.all(15),
-            decoration: BoxDecoration(
-              color: _getColorFromString(transaction['color']).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: Icon(
-              _getIconFromString(transaction['icon']),
-              size: 40,
-              color: _getColorFromString(transaction['color']),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            '${transaction['type'] == 'deposit' ? '+' : '-'}\$${(transaction['amount'] as double).toStringAsFixed(2)}',
-            style: const TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF1F0F46),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            transaction['type'] == 'deposit' ? 'Wallet Recharge' : 'Cash Withdrawal',
-            style: const TextStyle(
-              fontSize: 18,
-              color: Colors.grey,
-            ),
-          ),
-          const SizedBox(height: 30),
-          _buildDetailRow('Method', transaction['method']),
-          _buildDetailRow('Date', transaction['date']),
-          _buildDetailRow('Time', transaction['time']),
-          _buildDetailRow('Status', transaction['status']),
-          _buildDetailRow('Transaction ID', transaction['id']),
-          const SizedBox(height: 30),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Close'),
-            ),
-          ),
-        ],
-      ),
+          );
+        }
     );
   }
 
@@ -750,41 +658,6 @@ class _WalletHomePageState extends State<WalletHomePage> {
           Text(
             value,
             style: const TextStyle(fontWeight: FontWeight.w600),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.2)),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 10),
-          Text(
-            title,
-            style: TextStyle(
-              color: Colors.grey[700],
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              color: color,
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-            ),
           ),
         ],
       ),

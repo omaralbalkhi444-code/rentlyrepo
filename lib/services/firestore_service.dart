@@ -219,5 +219,58 @@ class FirestoreService {
     return Map<String, dynamic>.from(result.data);
   }
 
+  static Stream<List<Map<String, dynamic>>> userRecentTransactionsStream(String uid) async* {
+    //Get USER wallet id
+    final walletSnap = await FirebaseFirestore.instance
+        .collection("wallets")
+        .where("userId", isEqualTo: uid)
+        .where("type", isEqualTo: "USER")
+        .limit(1)
+        .get();
+
+    if (walletSnap.docs.isEmpty) {
+      yield [];
+      return;
+    }
+
+    final userWalletId = walletSnap.docs.first.id;
+
+    yield* FirebaseFirestore.instance
+        .collection("walletTransactions")
+        .where("userId", isEqualTo: uid)
+        .where("status", isEqualTo: "confirmed")
+        .orderBy("createdAt", descending: true)
+        .limit(50)
+        .snapshots()
+        .map((snap) {
+      final all = snap.docs.where((d) {
+        final data = d.data();
+        return data["toWalletId"] == userWalletId ||
+            data["fromWalletId"] == userWalletId;
+      }).map((d) {
+        final data = d.data();
+        final ts = (data["createdAt"] as Timestamp).toDate();
+
+        final isDeposit = data["toWalletId"] == userWalletId;
+
+        return {
+          "id": d.id,
+          "amount": (data["amount"] as num).toDouble(),
+          "type": isDeposit ? "deposit" : "withdrawal",
+          "method": data["purpose"] ?? "Wallet",
+          "status": data["status"],
+          "date":
+          "${ts.year}-${ts.month.toString().padLeft(2,'0')}-${ts.day.toString().padLeft(2,'0')}",
+          "time":
+          "${ts.hour.toString().padLeft(2,'0')}:${ts.minute.toString().padLeft(2,'0')}",
+          "icon": isDeposit ? "credit_card" : "money",
+          "color": isDeposit ? "green" : "red",
+        };
+      }).toList();
+
+      return all;
+    });
+  }
+
 
 }

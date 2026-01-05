@@ -1,6 +1,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:p2/logic/transaction_history_logic.dart';
+import 'package:p2/services/firestore_service.dart';
+import 'package:p2/user_manager.dart';
 
 class TransactionHistoryPage extends StatefulWidget {
   final List<Map<String, dynamic>> transactions;
@@ -27,7 +29,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Transaction History'),
+        title: const Text('Transactions History'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
@@ -52,50 +54,92 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
   }
 
   Widget _buildBalanceStats() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF1F0F46), Color(0xFF8A005D)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return StreamBuilder<Map<String, double>>(
+      stream: FirestoreService.combinedWalletStream(UserManager.uid!),
+      builder: (context, snapshot) {
+        final balances = snapshot.data ?? {
+          "userBalance": 0.0,
+          "holdingBalance": 0.0
+        };
+
+        final currentBalance = balances["userBalance"] ?? 0.0;
+        final holdingBalance = balances["holdingBalance"] ?? 0.0;
+
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF1F0F46), Color(0xFF8A005D)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Current Balance',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                ),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Current Balance',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    '${logic.formatBalance(currentBalance)}JD',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
               ),
-              Text(
-                '\$${logic.formatBalance(logic.currentBalance)}', 
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.w700,
-                ),
+
+              const SizedBox(height: 6),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Holding',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  Text(
+                    '${holdingBalance.toStringAsFixed(2)}JD',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 18),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildStatItem('Total Deposits', logic.totalDeposits, Colors.green),
+                  _buildStatItem('Total Withdrawals', logic.totalWithdrawals, Colors.orange),
+                ],
               ),
             ],
           ),
-          const SizedBox(height: 15),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildStatItem('Total Deposits', logic.totalDeposits, Colors.green),
-              _buildStatItem('Total Withdrawals', logic.totalWithdrawals, Colors.orange),
-            ],
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
+
 
   Widget _buildFilterButtons() {
     return Padding(

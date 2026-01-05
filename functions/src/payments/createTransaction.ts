@@ -6,13 +6,14 @@ if (!admin.apps.length) admin.initializeApp();
 const db = getFirestore();
 
 export const createTransaction = onCall(async (req) => {
-  const { fromWalletId, toWalletId, amount, purpose, referenceId } = req.data;
+  const { userId, fromWalletId, toWalletId, amount, purpose, referenceId } = req.data;
 
   if (!amount || amount <= 0) throw new Error("Amount must be > 0");
 
   const txRef = db.collection("walletTransactions").doc();
 
   const txData = {
+    userId: userId,
     fromWalletId: fromWalletId ?? null,
     toWalletId: toWalletId ?? null,
     amount,

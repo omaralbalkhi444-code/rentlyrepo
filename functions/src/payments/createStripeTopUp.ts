@@ -56,6 +56,7 @@ export const createStripeTopUp = onCall(
     // Create pending wallet transaction
     const txRef = db.collection("walletTransactions").doc();
     await txRef.set({
+      userId: userId,
       fromWalletId: null,
       toWalletId: walletId,
       amount,

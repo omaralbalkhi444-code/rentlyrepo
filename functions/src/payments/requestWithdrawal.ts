@@ -94,6 +94,7 @@ export const requestWithdrawal = onCall(async (req) => {
     });
 
     trx.set(txRef, {
+      userId: userId,
       fromWalletId: userWalletId,
       toWalletId: holdingWalletId,
       amount,
