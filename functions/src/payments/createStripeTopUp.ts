@@ -15,12 +15,22 @@ export const createStripeTopUp = onCall(
     secrets: [STRIPE_SECRET_KEY],
   },
   async (req) => {
-    const { userId, walletId, amount } = req.data;
+    const { userId, amount } = req.data;
 
-    if (!userId || !walletId || !amount)
+    if (!userId || !amount)
       throw new Error("Missing data");
 
     if (amount <= 0) throw new Error("Amount must be > 0");
+
+    const wallets = await db.collection("wallets")
+      .where("userId", "==", userId)
+      .where("type", "==", "USER")
+      .limit(1)
+      .get();
+
+    if (wallets.empty) throw new Error("User wallet not found");
+
+    const walletId = wallets.docs[0].id;
 
     const walletRef = db.collection("wallets").doc(walletId);
     const walletSnap = await walletRef.get();
@@ -32,10 +42,10 @@ export const createStripeTopUp = onCall(
     const stripe = new Stripe(STRIPE_SECRET_KEY.value());
     const expiresAt = Timestamp.fromMillis(Date.now() + 15 * 60 * 1000); // 15 mins
 
-    // Create Stripe PaymentIntent in JOD (JD)
+    // Create Stripe PaymentIntent
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount * 100), // stripe minor units
-      currency: "jod",
+      currency: "usd",
       metadata: {
         userId,
         walletId,
@@ -74,6 +84,8 @@ export const createStripeTopUp = onCall(
 
     return {
       clientSecret: paymentIntent.client_secret,
+      referenceNumber: paymentIntent.id,
+      method: "credit_card",
       topUpId: topUpRef.id,
       transactionId: txRef.id,
     };

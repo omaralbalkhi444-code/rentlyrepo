@@ -42,7 +42,6 @@ export { approveWithdrawal } from "./PSPsimulations/approveWithdrawal";
 export { rejectWithdrawal } from "./PSPsimulations/rejectWithdrawal";
 export { expireWithdrawals } from "./payments/expireWithdrawals";
 
-export { setPspRole } from "./users/setPspRole";
 
 /*                            CHAT USER to USER                             */
 

@@ -10,7 +10,7 @@ const db = getFirestore();
 const STRIPE_SECRET_KEY = defineSecret("STRIPE_SECRET_KEY");
 
 export const expireTopUps = onSchedule(
-  "every 5 minutes",
+  { schedule: "every 5 minutes", secrets: [STRIPE_SECRET_KEY] },
   async () => {
     const now = Timestamp.now();
 

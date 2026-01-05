@@ -1,8 +1,9 @@
 class CashWithdrawalLogic {
-  final double currentBalance;
+  double currentBalance;
 
   CashWithdrawalLogic({required this.currentBalance});
 
+  //  AMOUNT
   String? validateAmount(String? value) {
     if (value == null || value.isEmpty) {
       return 'Please enter amount';
@@ -14,15 +15,15 @@ class CashWithdrawalLogic {
     }
 
     if (amount < 10) {
-      return 'Minimum withdrawal is \$10';
+      return 'Minimum withdrawal is 10 JD';
     }
 
     if (amount > currentBalance) {
-      return 'Amount exceeds balance';
+      return 'Amount exceeds available balance';
     }
 
     if (amount > 1000) {
-      return 'Daily limit is \$1,000';
+      return 'Daily limit is 1,000 JD';
     }
 
     final decimalPart = value.split('.');
@@ -33,86 +34,74 @@ class CashWithdrawalLogic {
     return null;
   }
 
-  String? validateFullName(String? value) {
+  //  BANK WITHDRAWAL
+  String? validateIBAN(String? value) {
+    if (value == null || value.isEmpty) return 'Please enter IBAN';
+
+    value = value.replaceAll(' ', '');
+
+    if (value.length < 22 || value.length > 34) {
+      return 'Invalid IBAN length';
+    }
+
+    return null;
+  }
+
+  String? validateBankName(String? value) {
     if (value == null || value.isEmpty) {
+      return 'Please enter bank name';
+    }
+
+    if (value.length < 3) return 'Bank name too short';
+
+    return null;
+  }
+
+  String? validateAccountHolder(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please enter account holder name';
+    }
+
+    if (value.trim().split(' ').length < 2) {
       return 'Please enter full name';
     }
 
-    if (value.length < 3) {
-      return 'Name must be at least 3 characters';
+    return null;
+  }
+
+  //  EXCHANGE WITHDRAWAL
+  String? validatePickupName(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please enter receiver name';
     }
 
-    if (!RegExp(r'^[a-zA-Z\u0600-\u06FF\s]+$').hasMatch(value)) {
-      return 'Name must contain only letters and spaces';
-    }
-
-    final words = value.trim().split(RegExp(r'\s+'));
-    if (words.length < 2) {
-      return 'Please enter first and last name';
+    if (value.trim().split(' ').length < 2) {
+      return 'Please enter full name';
     }
 
     return null;
   }
 
-  String? validateNationalID(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Please enter national ID';
-    }
-
-    if (!RegExp(r'^[0-9]+$').hasMatch(value)) {
-      return 'National ID must contain only digits';
-    }
-
-    if (value.length != 10) {
-      return 'National ID must be 10 digits';
-    }
-
-    return null;
-  }
-
-  String? validateBirthDate(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Please enter date of birth';
-    }
-
-    if (!RegExp(r'^\d{2}/\d{2}/\d{4}$').hasMatch(value)) {
-      return 'Format: DD/MM/YYYY';
-    }
-
-    final parts = value.split('/');
-    final day = int.parse(parts[0]);
-    final month = int.parse(parts[1]);
-    final year = int.parse(parts[2]);
-
-    final birthDate = DateTime(year, month, day);
-    final age = DateTime.now().year - birthDate.year;
-
-    if (age < 18) {
-      return 'Must be 18 years or older';
-    }
-
-    return null;
-  }
-
-  String? validatePhone(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Please enter phone number';
-    }
+  String? validatePickupPhone(String? value) {
+    if (value == null || value.isEmpty) return 'Please enter phone number';
 
     final phone = value.replaceAll(RegExp(r'[^\d]'), '');
 
-    if (phone.length != 10) {
-      return 'Phone must be 10 digits';
-    }
-
-    if (!phone.startsWith('07')) {
+    if (!phone.startsWith('07') || phone.length != 10) {
       return 'Invalid phone number';
     }
 
     return null;
   }
 
-  String generateWithdrawalCode() {
-    return 'RTL-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
+  String? validatePickupId(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please enter ID number';
+    }
+
+    if (value.length < 6) return 'Invalid ID number';
+
+    return null;
   }
+
 }

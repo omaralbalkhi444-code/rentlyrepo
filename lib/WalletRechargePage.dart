@@ -1,6 +1,6 @@
 
 import 'package:flutter/material.dart';
-import 'package:p2/EfawateercomInvoicePage.dart';
+import 'package:p2/EfawateercomPaymentPage.dart';
 import 'package:p2/CreditCardPaymentPage.dart';
 import 'package:p2/services/firestore_service.dart';
 import 'package:p2/user_manager.dart';
@@ -624,16 +624,20 @@ class _WalletRechargePageState extends State<WalletRechargePage> {
     try {
       setState(() => loading = true);
 
-      final invoice = await FirestoreService.createInvoice(
-        amount,
-        selectedMethod!, // "credit_card" or "efawateercom"
-      );
+      Map<String, dynamic> response;
+
+      if (selectedMethod == "credit_card") {
+        response = await FirestoreService.createStripeTopUp(amount: amount, userId: UserManager.uid!);
+      } else {
+        response =
+        await FirestoreService.createEfawateerkomTopUp(amount: amount, userId: UserManager.uid!);
+      }
 
       setState(() => loading = false);
 
-      final ref = invoice["referenceNumber"];
-      final method = invoice["method"];
-      final clientSecret = invoice["clientSecret"];
+      final ref = response["referenceNumber"];
+      final method = response["method"];
+      final clientSecret = response["clientSecret"];
 
       if (method == "credit_card") {
         Navigator.push(
@@ -650,7 +654,7 @@ class _WalletRechargePageState extends State<WalletRechargePage> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => EfawateercomInvoicePage(
+            builder: (_) => EfawateercomPaymentPage(
               amount: amount,
               referenceNumber: ref,
             ),

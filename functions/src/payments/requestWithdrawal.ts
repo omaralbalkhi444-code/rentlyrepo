@@ -8,8 +8,6 @@ const db = getFirestore();
 export const requestWithdrawal = onCall(async (req) => {
   const {
     userId,
-    userWalletId,
-    holdingWalletId,
     amount,
     method,
 
@@ -22,7 +20,7 @@ export const requestWithdrawal = onCall(async (req) => {
     pickupIdNumber
   } = req.data;
 
-  if (!userId || !userWalletId || !holdingWalletId || !amount || !method)
+  if (!userId || !amount || !method)
     throw new Error("Missing required fields");
 
   if (amount <= 0) throw new Error("Amount must be > 0");
@@ -48,6 +46,26 @@ export const requestWithdrawal = onCall(async (req) => {
   const expiresAt = Timestamp.fromMillis(
     Date.now() + (method === "exchange" ? 48 : 24) * 60 * 60 * 1000
   );
+
+  const walletsSnap = await db
+      .collection("wallets")
+      .where("userId", "==", userId)
+      .get();
+
+  if (walletsSnap.empty)
+      throw new Error("No wallets found for user");
+
+  let userWalletId: string | null = null;
+  let holdingWalletId: string | null = null;
+
+  for (const doc of walletsSnap.docs) {
+      const data = doc.data();
+      if (data.type === "USER") userWalletId = doc.id;
+      if (data.type === "HOLDING") holdingWalletId = doc.id;
+  }
+
+  if (!userWalletId) throw new Error("User wallet not found");
+  if (!holdingWalletId) throw new Error("Holding wallet not found");
 
   const userRef = db.collection("wallets").doc(userWalletId);
   const holdingRef = db.collection("wallets").doc(holdingWalletId);

@@ -11,10 +11,20 @@ function generateReferenceNumber() {
 }
 
 export const createEfawateerkomTopUp = onCall(async (req) => {
-  const { userId, walletId, amount } = req.data;
+  const { userId, amount } = req.data;
 
-  if (!userId || !walletId || !amount) throw new Error("Missing data");
+  if (!userId || !amount) throw new Error("Missing data");
   if (amount <= 0) throw new Error("Amount must be > 0");
+
+  const wallets = await db.collection("wallets")
+    .where("userId", "==", userId)
+    .where("type", "==", "USER")
+    .limit(1)
+    .get();
+
+  if (wallets.empty) throw new Error("User wallet not found");
+
+  const walletId = wallets.docs[0].id;
 
   const walletRef = db.collection("wallets").doc(walletId);
   const walletSnap = await walletRef.get();
@@ -46,6 +56,7 @@ export const createEfawateerkomTopUp = onCall(async (req) => {
     userId,
     walletId,
     amount,
+    method: "efawateerkom",
     referenceNumber,
     status: "pending",
     transactionId: txRef.id,

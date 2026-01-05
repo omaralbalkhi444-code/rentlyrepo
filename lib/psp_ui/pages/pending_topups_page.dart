@@ -23,7 +23,8 @@ class PendingTopupsPage extends StatelessWidget {
       stream: FirebaseFirestore.instance
           .collection('topUpRequests')
           .where('status', isEqualTo: 'pending')
-          .orderBy('createdAt', descending: true)
+          .where('expiresAt', isGreaterThan: Timestamp.now())
+          .orderBy('expiresAt')
           .snapshots(),
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {

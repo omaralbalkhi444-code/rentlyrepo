@@ -29,19 +29,6 @@ class _CreditCardPaymentPageState extends State<CreditCardPaymentPage> {
     _logic = CreditCardLogic(amount: widget.amount);
   }
 
-  @override
-  void dispose() {
-    stripe.Stripe.instance.dangerouslyUpdateCardDetails(
-      stripe.CardDetails(
-        number: '',
-        cvc: '',
-        expirationMonth: 0,
-        expirationYear: 0,
-      ),
-    );
-    super.dispose();
-  }
-
   void _processPayment() async {
     setState(() => _logic.isProcessing = true);
 

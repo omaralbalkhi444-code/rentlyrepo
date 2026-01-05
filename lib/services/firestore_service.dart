@@ -101,41 +101,94 @@ class FirestoreService {
     return null;
   }
 
-  static Future<Map<String, dynamic>> createInvoice(double amount, String method) async {
-    final callable = FirebaseFunctions.instance.httpsCallable("createInvoice");
+  static Stream<double> walletBalanceStream(String uid) {
+    return FirebaseFirestore.instance
+        .collection("wallets")
+        .where("userId", isEqualTo: uid)
+        .where("type", isEqualTo: "USER")
+        .limit(1)
+        .snapshots()
+        .map((snapshot) {
+      if (snapshot.docs.isEmpty) return 0.0;
+
+      final data = snapshot.docs.first.data();
+      final balance = (data["balance"] ?? 0).toDouble();
+
+      return balance;
+    });
+  }
+
+  static Future<Map<String, dynamic>> createStripeTopUp({
+    required double amount,
+    required String userId,
+  }) async {
+    final callable = FirebaseFunctions.instance
+        .httpsCallable("createStripeTopUp");
+
     final result = await callable.call({
       "amount": amount,
-      "method": method,
+      "userId": userId,
     });
 
     return Map<String, dynamic>.from(result.data);
   }
 
-  static Future<void> markInvoicePaid(String referenceNumber) async {
-    final callable = FirebaseFunctions.instance.httpsCallable("markInvoicePaid");
-    await callable.call({
-      "referenceNumber": referenceNumber,
+  static Future<Map<String, dynamic>> createEfawateerkomTopUp({
+    required double amount,
+    required String userId,
+  }) async {
+    final callable = FirebaseFunctions.instance
+        .httpsCallable("createEfawateerkomTopUp");
+
+    final result = await callable.call({
+      "amount": amount,
+      "userId": userId,
     });
+
+    return Map<String, dynamic>.from(result.data);
   }
 
-  static Stream<double> walletBalanceStream(String uid) {
+  static Stream<Map<String, dynamic>?> topUpStatusStream(String referenceNumber) {
     return FirebaseFirestore.instance
-        .collection("wallets")
-        .doc(uid)
+        .collection("topUpRequests")
+        .where("referenceNumber", isEqualTo: referenceNumber)
+        .limit(1)
         .snapshots()
-        .map((doc) {
-      if (!doc.exists) return 0.0;
-
-      final data = doc.data();
-      if (data == null) return 0.0;
-
-      final balance = data["balance"];
-      if (balance is num) {
-        return balance.toDouble();
-      }
-
-      return 0.0;
+        .map((snap) {
+      if (snap.docs.isEmpty) return null;
+      return snap.docs.first.data();
     });
   }
+
+  static Future<Map<String, dynamic>> createWithdrawalRequest({
+    required double amount,
+    required String userId,
+    required String method,
+    String? iban,
+    String? bankName,
+    String? accountHolderName,
+    String? pickupName,
+    String? pickupPhone,
+    String? pickupIdNumber,
+  }) async {
+
+    final callable = FirebaseFunctions.instance
+        .httpsCallable("requestWithdrawal");
+
+    final result = await callable.call({
+      "userId": userId,
+      "amount": amount,
+      "method": method,
+      "iban": iban,
+      "bankName": bankName,
+      "accountHolderName": accountHolderName,
+      "pickupName": pickupName,
+      "pickupPhone": pickupPhone,
+      "pickupIdNumber": pickupIdNumber,
+    });
+
+    return Map<String, dynamic>.from(result.data);
+  }
+
 
 }
