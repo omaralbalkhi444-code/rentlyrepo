@@ -20,8 +20,24 @@ class _OwnerItemsPageState extends State<OwnerItemsPage> {
 
   String get ownerUid => FirebaseAuth.instance.currentUser!.uid;
 
+      @override
+      void initState() {
+        super.initState();
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final args = ModalRoute.of(context)?.settings.arguments;
+          if (args is Map && args['tab'] is int) {
+            setState(() {
+              selectedTab = args['tab'];
+            });
+          }
+        });
+      }
+      
+
   //  COUNTERS
-Widget myItemsCounter() {
+
+ Widget myItemsCounter() {
   return StreamBuilder<QuerySnapshot>(
     stream: FirebaseFirestore.instance
         .collection("items")
@@ -85,7 +101,8 @@ Widget _counterBadge(int count) {
         children: [
           _buildHeader(size, isSmall),
           SizedBox(height: size.height * 0.02),
-
+          
+          
           //counter
           Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -93,8 +110,11 @@ Widget _counterBadge(int count) {
                   _buildTab("My Items", 0, size.width),
                    const SizedBox(width: 30),
                   _buildTab("Requests", 1, size.width),
+                  
+              
             ],
           ),
+
 
           SizedBox(height: size.height * 0.03),
 
@@ -266,6 +286,7 @@ Widget _counterBadge(int count) {
   Widget _buildRequestCard(String requestId, Map<String, dynamic> data) {
     final status = data["status"] ?? "pending";
     final itemTitle = data["itemTitle"] ?? "Unknown Item";
+    final renterId = data["customerUid"] ?? "Unknown User";
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -289,8 +310,8 @@ Widget _counterBadge(int count) {
               // Small ACCEPT / REJECT icons (only if pending)
               if (status == "pending") ...[
                 IconButton(
-                  icon: const Icon(Icons.check, color: Colors.green),
-                  iconSize: 32,
+                  icon: const Icon(Icons.check_circle, color: Colors.green),
+                  iconSize: 26,
                   onPressed: () async {
                     try {
                       await FirestoreService.updateRentalRequestStatus(
@@ -314,8 +335,8 @@ Widget _counterBadge(int count) {
                   },
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close, color: Colors.red),
-                  iconSize: 32,
+                  icon: const Icon(Icons.cancel, color: Colors.red),
+                  iconSize: 26,
                   onPressed: () async {
                     await FirestoreService.updateRentalRequestStatus(
                       requestId,
@@ -326,7 +347,7 @@ Widget _counterBadge(int count) {
               ],
               if (status == "accepted") ...[
                 IconButton(
-                  icon: const Icon(Icons.qr_code, size: 32),
+                  icon: const Icon(Icons.qr_code, size: 28),
                   onPressed: () {
                     Navigator.push(
                       context,
@@ -340,7 +361,7 @@ Widget _counterBadge(int count) {
                   },
                 ),
                 IconButton(
-                  icon: const Icon(Icons.flash_on, color: Colors.orange, size: 32),
+                  icon: const Icon(Icons.flash_on, color: Colors.orange, size: 28),
                   tooltip: "Force Active (Testing)",
                   onPressed: () async {
                     try {
@@ -370,7 +391,7 @@ Widget _counterBadge(int count) {
               if (status == "active") ...[
                 IconButton(
                   icon: const Icon(Icons.qr_code_scanner,
-                      size: 32, color: Color(0xFF1F0F46)),
+                      size: 28, color: Color(0xFF1F0F46)),
                   tooltip: "Scan Return QR",
                   onPressed: () {
                     Navigator.push(
@@ -383,7 +404,7 @@ Widget _counterBadge(int count) {
                 ),
 
                 IconButton(
-                  icon: const Icon(Icons.flash_on, color: Colors.red, size: 32),
+                  icon: const Icon(Icons.flash_on, color: Colors.red, size: 28),
                   tooltip: "Force ENDED (Testing)",
                   onPressed: () async {
                     try {
@@ -440,6 +461,37 @@ Widget _counterBadge(int count) {
           ),
         ],
       ),
+    );
+  }
+
+  // ACCEPT / REJECT BUTTONS
+  Widget _buildAcceptRejectButtons(String requestId) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green, foregroundColor: Colors.white),
+          onPressed: () {
+            FirebaseFirestore.instance
+                .collection("rentalRequests")
+                .doc(requestId)
+                .update({"status": "accepted"});
+          },
+          child: const Text("Accept"),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red, foregroundColor: Colors.white),
+          onPressed: () {
+            FirebaseFirestore.instance
+                .collection("rentalRequests")
+                .doc(requestId)
+                .update({"status": "rejected"});
+          },
+          child: const Text("Reject"),
+        ),
+      ],
     );
   }
 
