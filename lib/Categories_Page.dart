@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:p2/AddItemPage .dart';
 import 'package:p2/sub_category_page.dart';
@@ -7,7 +6,7 @@ import 'bottom_nav.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
+//import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:overlay_support/overlay_support.dart';
@@ -77,7 +76,7 @@ class _CategoryPageState extends State<CategoryPage> {
 
     myUid = FirebaseAuth.instance.currentUser?.uid;
 
-    saveFcmToken();
+    //saveFcmToken();
 
     listenForChatNotifications();        //  chat banner
     listenForItemStatusUpdates();        //  admin → user banner
@@ -269,7 +268,7 @@ class _CategoryPageState extends State<CategoryPage> {
   // ===============================
   // SAVE FCM TOKEN (OPTIONAL)
   // ===============================
-  Future<void> saveFcmToken() async {
+ /* Future<void> saveFcmToken() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
@@ -279,7 +278,7 @@ class _CategoryPageState extends State<CategoryPage> {
     await FirebaseDatabase.instance
         .ref("users/${user.uid}/fcmToken")
         .set(token);
-  }
+  }*/
 
   // ===============================
   // UI
