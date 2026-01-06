@@ -1,0 +1,10 @@
+workflows:
+  android-user-app:
+    name: Android User App
+    environment:
+      flutter: stable
+    scripts:
+      - flutter pub get
+      - flutter build apk -t lib/main_user.dart
+    artifacts:
+      - build/app/outputs/flutter-apk/app-release.apk
