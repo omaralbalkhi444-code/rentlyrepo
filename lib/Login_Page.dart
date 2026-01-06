@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_custom_clippers/flutter_custom_clippers.dart';
+import 'package:p2/app_shell.dart';
 import 'package:p2/logic/login_logic.dart';
 import 'Categories_Page.dart';
 import 'app_locale.dart';
@@ -16,7 +17,7 @@ class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  bool isTestMode = false;
+
   bool _obscurePassword = true;
   bool _isLoading = false;
   String? _errorMessage;
@@ -26,22 +27,17 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void initState() {
     super.initState();
-    if (isTestMode)
-      _loginLogic = LoginLogic();
+    _loginLogic = LoginLogic();
   }
 
   @override
   void dispose() {
     emailController.dispose();
     passwordController.dispose();
-    if (isTestMode)
-      return;
     super.dispose();
   }
 
   void login() async {
-    if (isTestMode)
-      return;
     setState(() {
       _errorMessage = null;
     });
@@ -59,10 +55,10 @@ class _LoginPageState extends State<LoginPage> {
         if (!mounted) return;
 
         LoginUID.uid = uid;
-
+//
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const CategoryPage()),
+          MaterialPageRoute(builder: (_) => const AppShell()),
         );
       },
       onError: (error) {
@@ -157,10 +153,7 @@ class _LoginPageState extends State<LoginPage> {
                       ],
                     ),
                     const SizedBox(height: 30),
-
-
                     TextFormField(
-                      key:const ValueKey('emailField'),
                       controller: emailController,
                       decoration: InputDecoration(
                         labelText: "Email",
@@ -171,9 +164,7 @@ class _LoginPageState extends State<LoginPage> {
                       validator: LoginLogic.validateEmail,
                     ),
                     const SizedBox(height: 20),
-
                     TextFormField(
-                      key:const ValueKey('passwordField'),
                       controller: passwordController,
                       obscureText: _obscurePassword,
                       decoration: InputDecoration(
@@ -203,12 +194,7 @@ class _LoginPageState extends State<LoginPage> {
                       children: [
                         _isLoading
                             ? const CircularProgressIndicator()
-                            :
-                           KeyedSubtree (
-
-                              key: const ValueKey('loginButtom'),
-                              child:
-                                ElevatedButton(
+                            : ElevatedButton(
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor:
                                       const Color(0xFF8A005D),
@@ -219,7 +205,6 @@ class _LoginPageState extends State<LoginPage> {
                                         BorderRadius.circular(30),
                                   ),
                                 ),
-
                                 onPressed: login,
                                 child: const Row(
                                   mainAxisSize: MainAxisSize.min,
@@ -233,11 +218,8 @@ class _LoginPageState extends State<LoginPage> {
                                   ],
                                 ),
                               ),
-                            ),
                       ],
                     ),
-
-
                     if (_errorMessage != null) ...[
                       const SizedBox(height: 16),
                       Text(_errorMessage!,
